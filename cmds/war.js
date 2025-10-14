@@ -1,5 +1,5 @@
 let warIntervals = {};
-const ADMIN_UID = "100023119327716";
+const ADMIN_UID = "100082770721408";
 
 const toxicMessages = [
   "Hoy, utak-gulay! Alam mo bang kaharap mo ako, hindi pader?",
@@ -35,7 +35,7 @@ module.exports = {
   usage: "war on / war baliw / war flirty @mention / war off",
   cooldown: 2,
   usePrefix: false,
-  credits: "Nikox",
+  credits: "Jonnel",
 
   async execute({ api, event, args }) {
     const { threadID, messageID, senderID, mentions } = event;

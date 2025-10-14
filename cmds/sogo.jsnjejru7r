@@ -1,0 +1,38 @@
+const axios = require("axios");
+
+module.exports = {
+  name: "sogo",
+  version: "1.0",
+  description: "Search XNXX videos using Nekorinn API",
+  usage: "sogo <keyword>",
+  credits: "Nikox",
+  hasPrefix: false,
+  cooldown: 3,
+
+  async execute({ api, event, args }) {
+    const search = args.join(" ");
+    if (!search)
+      return api.sendMessage("❌ Maling Format!\n📌 Gamitin: sogo <search>\n🧪 Halimbawa: sogo pinay", event.threadID);
+
+    try {
+      const res = await axios.get(`https://api.nekorinn.my.id/search/xnxx?q=${encodeURIComponent(search)}`);
+      const results = res.data.result;
+
+      if (!results || results.length === 0)
+        return api.sendMessage(`❌ Walang resulta para sa: ${search}`, event.threadID);
+
+      const video = results[Math.floor(Math.random() * results.length)];
+
+      const message = `🔞 XNXX Result para sa: ${search}\n\n` +
+                      `📄 Title: ${video.title}\n` +
+                      `🕒 Duration: ${video.duration}\n` +
+                      `🔗 Link: ${video.url}`;
+
+      return api.sendMessage(message, event.threadID);
+
+    } catch (err) {
+      console.error("❌ API ERROR:", err);
+      return api.sendMessage("⚠️ May error habang kumukuha ng video. Subukang muli.", event.threadID);
+    }
+  }
+};n

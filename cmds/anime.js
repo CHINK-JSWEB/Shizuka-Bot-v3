@@ -7,7 +7,7 @@ module.exports = {
     name: "anime",
     aliases: ["animetop", "animelist"],
     version: "1.1",
-    author: "Nikox",
+    author: "Jonnel",
     countDown: 5,
     role: 0,
     description: "Show popular anime with images from Haji Mix API"
@@ -29,7 +29,7 @@ module.exports = {
       const topAnime = list.slice(0, 3);
       const attachments = [];
 
-      // Make sure /cmds/cache exists
+      // Siguraduhing may cache folder
       const cacheDir = path.join(__dirname, "cache");
       await fs.ensureDir(cacheDir);
 
@@ -49,16 +49,25 @@ module.exports = {
         attachments.push(fs.createReadStream(imagePath));
       }
 
-      let caption = `📺 𝗣𝗼𝗽𝘂𝗹𝗮𝗿 𝗔𝗻𝗶𝗺𝗲 (Page ${page})\n\n`;
+      // Build caption na may design
+      let caption = `🟢⚪🔴 𝗣𝗼𝗽𝘂𝗹𝗮𝗿 𝗔𝗻𝗶𝗺𝗲 𝗟𝗶𝘀𝘁 🟢⚪🔴\n`;
+      caption += `📄 Page: ${page}\n👨‍💻 Creator: Jonnel Soriano\n━━━━━━━━━━━━━━\n\n`;
+
       topAnime.forEach((anime, i) => {
         const a = anime.anyCard;
-        caption += `🎌 ${a.englishName || a.name}\n📊 Score: ${a.score}\n📺 Sub: ${a.availableEpisodes.sub}, Dub: ${a.availableEpisodes.dub}\n\n`;
+        caption += `🎌 𝗡𝗮𝗺𝗲: *${a.englishName || a.name}*\n`;
+        caption += `📊 𝗦𝗰𝗼𝗿𝗲: ${a.score}\n`;
+        caption += `📺 𝗦𝘂𝗯: ${a.availableEpisodes.sub}, 𝗗𝘂𝗯: ${a.availableEpisodes.dub}\n`;
+        caption += `━━━━━━━━━━━━━━\n`;
       });
+
+      caption += `🤖 Powered by AI | Creator: Jonnel Soriano`;
 
       return api.sendMessage({
         body: caption,
         attachment: attachments
       }, event.threadID, async () => {
+        // Clean up images after sending
         for (const anime of topAnime) {
           const imagePath = path.join(cacheDir, `${anime.anyCard._id}.jpg`);
           if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);

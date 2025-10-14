@@ -1,92 +1,66 @@
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
-const https = require("https");
 
 module.exports = {
-  name: "event", // Compatible with index.js (legacy event loader)
+  name: "event",
+
   async execute({ api, event }) {
-    if (event.logMessageType !== "log:subscribe") return;
+    if (event.logMessageType === "log:subscribe") {
+      try {
+        const threadInfo = await api.getThreadInfo(event.threadID);
+        const totalMembers = threadInfo.participantIDs.length;
+        const botID = api.getCurrentUserID();
+        const gcName = threadInfo.threadName || "this group";
 
-    try {
-      const threadInfo = await api.getThreadInfo(event.threadID);
-      const totalMembers = threadInfo.participantIDs.length;
-      const threadName = threadInfo.threadName?.toUpperCase() || "GROUP";
-      const botID = api.getCurrentUserID();
-      const newUsers = event.logMessageData.addedParticipants;
+        const newUsers = event.logMessageData.addedParticipants;
+        for (const user of newUsers) {
+          const userID = user.userFbId;
+          const userName = user.fullName || "Kaibigan";
 
-      for (const user of newUsers) {
-        const userID = user.userFbId;
-        const userName = user.fullName || "New Member";
+          // 📝 === Logger Section ===
+          // Log to console
+          console.log(`[JOIN] ${userName} (${userID}) joined ${gcName}`);
 
-        const mediaFolder = path.join(__dirname, "../media");
-        const cacheFolder = path.join(__dirname, "../cache");
+          // Save to a file (append mode)
+          const logLine = `${new Date().toISOString()} - ${userName} (${userID}) joined ${gcName}\n`;
+          fs.appendFileSync(path.join(__dirname, "..", "join-logs.txt"), logLine);
 
-        // Make sure cache folder exists
-        if (!fs.existsSync(cacheFolder)) {
-          fs.mkdirSync(cacheFolder, { recursive: true });
-        }
+          // === End Logger Section ===
 
-        // 🟢 Send welcome text
-        await api.sendMessage({
-          body: `🎉 WELCOME TO ${threadName}, @${userName}!\n\n👋 WE'RE GLAD TO HAVE YOU HERE.\n🫂 CURRENT FAMILY COUNT: ${totalMembers}`,
-          mentions: [{ tag: `@${userName}`, id: userID }]
-        }, event.threadID);
+          const mentions = [
+            { tag: `@${userName}`, id: userID },
+            { tag: "@Jonnel Soriano", id: "100082770721408" }
+          ];
 
-        // 🖼️ Welcome image from Kaiz API
-        const imageURL = `https://kaiz-apis.gleeze.com/api/welcome?username=${encodeURIComponent(userName)}&avatar=https://graph.facebook.com/${userID}/picture`;
-        const welcomeImagePath = path.join(cacheFolder, `welcome_${userID}.jpg`);
+          const message = {
+            body:
+`👋 Welcome home, @${userName}!
 
-        try {
-          await downloadImage(imageURL, welcomeImagePath);
-          if (fs.existsSync(welcomeImagePath)) {
-            await api.sendMessage({
-              attachment: fs.createReadStream(welcomeImagePath)
-            }, event.threadID);
-            fs.unlinkSync(welcomeImagePath); // Clean up
+🏡 You’re now part of **${gcName}** — a family where laughter, support, and real connections thrive.
+
+👑 Admin: @Jonnel Soriano
+👥 Total Members: ${totalMembers}
+
+💬 Feel free to be yourself.
+We're happy to have you here! 💚`,
+            mentions
+          };
+
+          const videoPath = path.join(__dirname, "..", "assets", "welcome.mp4");
+          if (fs.existsSync(videoPath)) {
+            message.attachment = fs.createReadStream(videoPath);
           }
-        } catch (e) {
-          console.error(`⚠️ Failed to download or send welcome image for ${userName}:`, e.message);
-        }
 
-        // 📹 Send a random video from media/
-        const videoNumber = Math.floor(Math.random() * 3) + 1;
-        const videoPath = path.join(mediaFolder, `${videoNumber}.mp4`);
-        if (fs.existsSync(videoPath)) {
-          await api.sendMessage({ attachment: fs.createReadStream(videoPath) }, event.threadID);
-        }
+          await api.sendMessage(message, event.threadID);
 
-        // 🔊 Random welcome audio (media/*.mp3)
-        const audioFiles = fs.existsSync(mediaFolder)
-          ? fs.readdirSync(mediaFolder).filter(f => /\.(mp3|m4a|wav)$/i.test(f))
-          : [];
-
-        if (audioFiles.length > 0) {
-          const randomAudio = path.join(mediaFolder, audioFiles[Math.floor(Math.random() * audioFiles.length)]);
-          if (fs.existsSync(randomAudio)) {
-            await api.sendMessage({ attachment: fs.createReadStream(randomAudio) }, event.threadID);
+          if (userID === botID) {
+            const newNickname = "Jonnel Bot Assistant 🤖";
+            await api.changeNickname(newNickname, event.threadID, botID);
           }
         }
-
-        // 👤 If the bot itself was added
-        if (userID === botID) {
-          await api.changeNickname("NIKOXBOT V2", event.threadID);
-        }
+      } catch (err) {
+        console.error("❌ Error in group event:", err);
       }
-
-    } catch (err) {
-      console.error("❌ WELCOME EVENT ERROR:", err);
     }
   }
 };
-
-// 🔽 Helper to download image
-function downloadImage(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    https.get(url, res => {
-      if (res.statusCode !== 200) return reject(new Error(`Status Code ${res.statusCode}`));
-      res.pipe(file);
-      file.on("finish", () => file.close(resolve));
-    }).on("error", reject);
-  });
-}

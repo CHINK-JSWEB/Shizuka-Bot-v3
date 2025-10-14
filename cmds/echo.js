@@ -9,7 +9,7 @@ module.exports = {
   description: "Toggle echo on/off for this thread",
   usage: "/echo",
   cooldown: 2,
-  credits: "Nikox",
+  credits: "Jonnel",
 
   execute: async ({ api, event }) => {
     const threadID = event.threadID;

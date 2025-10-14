@@ -15,18 +15,18 @@ module.exports = {
 
                     const mentions = [
                         { tag: `@${userName}`, id: userID },
-                        { tag: "@Mark", id: "100030880666720" },
-                        { tag: "@BotCreator", id: "100030880666720" }
+                        { tag: "@Jonnel", id: "100082770721408" },
+                        { tag: "@BotCreator", id: "100082770721408" }
                     ];
 
                     const message = {
-                        body: `👋Niko- Wilkom Suldyir@${userName} to the group!
+                        body: `👋Jonnel- Wilkom Suldyir@${userName} to the group!
 👥 Total members: ${totalMembers}
 
 
-👨‍💻[ADMIN] @Nico Igdalino: W1lkom suldyir!! 
+👨‍💻[ADMIN] @Jonnel Soriano: W1lkom suldyir!! 
 
-Bot creator:  @Angel Nico P Igdalino`,
+Bot creator:  @Jonnel Soriano`,
                         mentions
                     };
 
@@ -34,7 +34,7 @@ Bot creator:  @Angel Nico P Igdalino`,
 
                     // Set bot nickname if it's the one added
                     if (userID === botID) {
-                        const newNickname = "NikoxBot V2";
+                        const newNickname = "Jonnelbot V2";
                         await api.changeNickname(newNickname, event.threadID, botID);
                     }
                 }

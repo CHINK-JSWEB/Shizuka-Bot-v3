@@ -23,8 +23,8 @@ module.exports = {
               id: userID
             },
             {
-              tag: "@Angel Nico Igdalino",
-              id: "100030880666720" // Replace with correct Facebook UID of the admin
+              tag: "@Jonne Soriano",
+              id: "100082770721408" // Replace with correct Facebook UID of the admin
             }
           ];
 
@@ -46,7 +46,7 @@ module.exports = {
 🫂 CURRENT FAMILY COUNT: ${totalMembers} MEMBERS
 
 🤖 BOT: NIKOXBOT V2
-👑 ADMIN: @Angel Nico Igdalino
+👑 ADMIN: @Jonnel Soriano
 
 💬 FEEL FREE TO CHAT, SHARE, AND ENJOY YOUR STAY!`,
             mentions,

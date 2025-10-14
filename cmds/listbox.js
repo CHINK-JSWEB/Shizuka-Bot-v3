@@ -5,7 +5,7 @@ module.exports = {
   usage: "[list all groups with admin(s)]",
   cooldown: 10,
   hasPermission: 2, // Only thread admins or bot owner
-  credits: "Nikox",
+  credits: "Jonnel",
 
   async execute({ api, event }) {
     try {

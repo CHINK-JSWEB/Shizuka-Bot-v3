@@ -148,11 +148,11 @@ const startBot = () => {
       });
 
       console.clear();
-      console.log("🤖 Nikoxbot V2 is now online!");
+      console.log("🤖 Jonnelbot V2 is now online!");
 
       const gifPath = path.join(__dirname, "assets", "nikoxcat.gif");
       const botInfo = {
-        body: `📌 Prefix: ${botPrefix}\n🆔 Bot Name: Nikoxbot V2`,
+        body: `📌 Prefix: ${botPrefix}\n🆔 Bot Name: Jonnelbot V2`,
         attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined
       };
       api.sendMessage(botInfo, config.ownerID);

@@ -6,7 +6,7 @@ module.exports = {
   config: {
     name: "tiktok",
     version: "1.3",
-    author: "Nikox",
+    author: "Jonnel",
     countDown: 5,
     role: 0,
     shortDescription: "Search TikTok videos",
@@ -49,7 +49,7 @@ module.exports = {
 
       // Send video with branding
       api.sendMessage({
-        body: `🎥 Nikox TikTok\n🎬 ${video.title}`,
+        body: `🎥 Jonnel TikTok\n🎬 ${video.title}`,
         attachment: fs.createReadStream(filePath)
       }, event.threadID, () => fs.unlinkSync(filePath), event.messageID);
 

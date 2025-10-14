@@ -5,7 +5,7 @@ module.exports = {
   config: {
     name: "trigger",
     version: "1.0",
-    author: "Nikox",
+    author: "Jonnel",
     description: "Send a triggered GIF or image from assets/triggered",
     category: "fun",
     role: 0,

@@ -1,6 +1,5 @@
 const WebSocket = require("ws");
 const axios = require("axios");
-
 const activeSessions = new Map();
 const lastSentCache = new Map();
 const favoriteMap = new Map();
@@ -26,7 +25,6 @@ function getTimeAgo(date) {
   const min = Math.floor(sec / 60);
   const hour = Math.floor(min / 60);
   const day = Math.floor(hour / 24);
-
   if (sec < 60) return `${sec}s ago`;
   if (min < 60) return `${min}m ago`;
   if (hour < 24) return `${hour}h ago`;
@@ -36,7 +34,7 @@ function getTimeAgo(date) {
 function formatItems(items, useEmoji = true) {
   return items
     .filter(i => i.quantity > 0)
-    .map(i => `- ${useEmoji && i.emoji ? i.emoji + " " : ""}${i.name}: ${formatValue(i.quantity)}`)
+    .map(i => `• ${useEmoji && i.emoji ? i.emoji + " " : ""}${i.name}: ${formatValue(i.quantity)}`)
     .join("\n");
 }
 
@@ -105,16 +103,16 @@ function ensureWebSocketConnection() {
           if (favList.length > 0 && matchedItems.length === 0) return false;
           matchCount += matchedItems.length;
           const restockLabel = section.countdown || altCountdown;
-          sections.push(`${label}: ${formatItems(matchedItems, useEmoji)}${restockLabel ? `\n⏳ Restock In: ${restockLabel}` : ""}`);
+          sections.push(`🟢 ${label}:\n${formatItems(matchedItems, useEmoji)}${restockLabel ? `\n⏳ Restock In: ${restockLabel}` : ""}`);
           return true;
         }
 
-        checkAndAdd("🛠️ 𝗚𝗲𝗮𝗿", stockData.gear, true);
-        checkAndAdd("🌱 𝗦𝗲𝗲𝗱𝘀", stockData.seed, true);
-        checkAndAdd("🥚 𝗘𝗴𝗴𝘀", stockData.egg, true);
-        checkAndAdd("🎨 𝗖𝗼𝘀𝗺𝗲𝘁𝗶𝗰𝘀", stockData.cosmetics, false);
-        checkAndAdd("🎉 𝗘𝘃𝗲𝗻𝘁", stockData.event, false);
-        checkAndAdd("🚚 𝗧𝗿𝗮𝘃𝗲𝗹𝗶𝗻𝗴 𝗠𝗲𝗿𝗰𝗵𝗮𝗻𝘁", stockData.travelingmerchant, false, stockData.travelingmerchant.appearIn);
+        checkAndAdd("𝗚𝗲𝗮𝗿", stockData.gear, true);
+        checkAndAdd("𝗦𝗲𝗲𝗱𝘀", stockData.seed, true);
+        checkAndAdd("𝗘𝗴𝗴𝘀", stockData.egg, true);
+        checkAndAdd("𝗖𝗼𝘀𝗺𝗲𝘁𝗶𝗰𝘀", stockData.cosmetics, false);
+        checkAndAdd("𝗘𝘃𝗲𝗻𝘁", stockData.event, false);
+        checkAndAdd("𝗧𝗿𝗮𝘃𝗲𝗹𝗶𝗻𝗴 𝗠𝗲𝗿𝗰𝗵𝗮𝗻𝘁", stockData.travelingmerchant, false, stockData.travelingmerchant.appearIn);
 
         if (favList.length > 0 && matchCount === 0) continue;
         if (sections.length === 0) continue;
@@ -128,19 +126,22 @@ function ensureWebSocketConnection() {
           .then(res => res.data).catch(() => null);
 
         const weatherInfo = weather
-          ? `🌤️ 𝗪𝗲𝗮𝘁𝗵𝗲𝗿: ${weather.icon} ${weather.weatherType}\n📋 ${weather.description}\n🎯 ${weather.cropBonuses}\n`
+          ? `🌤️ Weather: ${weather.icon} ${weather.weatherType}\n📋 ${weather.description}\n🎯 Crop Bonuses: ${weather.cropBonuses}\n`
           : "";
 
         const title = favList.length > 0
-          ? `♥️ ${matchCount} 𝗙𝗮𝘃𝗼𝗿𝗶𝘁𝗲 𝗶𝘁𝗲𝗺${matchCount > 1 ? "s" : ""} 𝗙𝗼𝘂𝗻𝗱!`
-          : "🌾 𝗚𝗿𝗼𝘄 𝗔 𝗚𝗮𝗿𝗱𝗲𝗻 — 𝗧𝗿𝗮𝗰𝗸𝗲𝗿";
+          ? `♥️ ${matchCount} Favorite item${matchCount > 1 ? "s" : ""} Found!`
+          : "🌾 Grow A Garden — Tracker";
 
         const messageKey = JSON.stringify({ title, sections, weatherInfo, updatedAt });
         const lastSent = lastSentCache.get(senderId);
         if (lastSent === messageKey) continue;
 
         lastSentCache.set(senderId, messageKey);
-        await session.api.sendMessage(`${title}\n\n${sections.join("\n\n")}\n\n${weatherInfo}📅 Updated at (PH): ${updatedAt}`, session.threadID);
+        await session.api.sendMessage(
+          `🌟 Jonnel's Gagstock Tracker 🌟\n\n${title}\n\n${sections.join("\n\n")}\n\n${weatherInfo}📅 Updated at (PH): ${updatedAt}\n🔹 Bot Owner: Jonnel`,
+          session.threadID
+        );
       }
     } catch (_) {
       // Silent error
@@ -159,10 +160,10 @@ function ensureWebSocketConnection() {
 module.exports = {
   config: {
     name: "gagstock",
-    version: "1.0",
+    version: "1.1",
     role: 0,
     countDown: 3,
-    description: "Track Grow A Garden stock via WebSocket and get last seen items.",
+    description: "Track Grow A Garden stock via WebSocket with favorites and last seen items",
     guide: {
       en: "gagstock on | gagstock off | gagstock fav add Carrot | gagstock lastseen gear"
     }
@@ -186,7 +187,7 @@ module.exports = {
         else if (action === "remove") updated.delete(name);
       }
       favoriteMap.set(senderId, Array.from(updated));
-      return api.sendMessage(`✅ Favorite list updated: ${Array.from(updated).join(", ") || "(empty)"}`, threadID);
+      return api.sendMessage(`✅ Favorite list updated: ${Array.from(updated).join(", ") || "(empty)"}\n🔹 Jonnel`, threadID);
     }
 
     if (subcmd === "lastseen") {
@@ -202,28 +203,35 @@ module.exports = {
         result.push(`🔹 ${cat.toUpperCase()} (${list.length})\n${list.join("\n")}`);
       }
       if (result.length === 0) return api.sendMessage("⚠️ No last seen data found.", threadID);
-      return api.sendMessage(`📦 𝗟𝗮𝘀𝘁 𝗦𝗲𝗲𝗻 𝗜𝘁𝗲𝗺𝘀\n\n${result.join("\n\n")}`, threadID);
-    }
+      return api.sendMessage(`📦 Last Seen Items\n\n${result.join("\n\n")}\n🔹 Jonnel`, threadID);
+}
 
-    if (subcmd === "off") {
-      if (!activeSessions.has(senderId)) {
-        return api.sendMessage("⚠️ You don't have an active gagstock session.", threadID);
-      }
-      activeSessions.delete(senderId);
-      lastSentCache.delete(senderId);
-      return api.sendMessage("🛑 Gagstock tracking stopped.", threadID);
-    }
-
-    if (subcmd !== "on") {
-      return api.sendMessage("📌 Usage:\n• gagstock on\n• gagstock fav add Carrot | Watering Can\n• gagstock lastseen gear | seed\n• gagstock off", threadID);
-    }
-
-    if (activeSessions.has(senderId)) {
-      return api.sendMessage("📡 You're already tracking Gagstock. Use gagstock off to stop.", threadID);
-    }
-
-    activeSessions.set(senderId, { api, threadID });
-    api.sendMessage("✅ Gagstock tracking started via WebSocket!", threadID);
-    ensureWebSocketConnection();
+if (subcmd === "off") {
+  if (!activeSessions.has(senderId)) {
+    return api.sendMessage("⚠️ You don't have an active Gagstock session.", threadID);
   }
-};
+  activeSessions.delete(senderId);
+  lastSentCache.delete(senderId);
+  return api.sendMessage("🛑 Gagstock tracking stopped.\n🔹 Jonnel", threadID);
+}
+
+if (subcmd !== "on") {
+  return api.sendMessage(
+    "📌 Usage:\n" +
+    "• gagstock on — Start tracking\n" +
+    "• gagstock fav add/remove Item1 | Item2 — Manage favorite items\n" +
+    "• gagstock lastseen gear | seed — Show last seen items\n" +
+    "• gagstock off — Stop tracking\n🔹 Jonnel",
+    threadID
+  );
+}
+
+if (activeSessions.has(senderId)) {
+  return api.sendMessage("📡 You're already tracking Gagstock. Use gagstock off to stop.\n🔹 Jonnel", threadID);
+}
+
+activeSessions.set(senderId, { api, threadID });
+api.sendMessage("✅ Gagstock tracking started via WebSocket!\n🌟 Updates will include your favorites and last seen items.\n🔹 Jonnel", threadID);
+ensureWebSocketConnection();
+
+} };

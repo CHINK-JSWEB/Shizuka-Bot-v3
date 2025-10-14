@@ -1,41 +1,43 @@
-module.exports.config = {
-  name: "antiout",
-  version: "1.0.0",
-  author: "Nikox x Mirai",
-  description: "Re-add user who left the group",
-  eventType: ["log:unsubscribe"]
-};
+const fs = require("fs-extra");
+const path = require("path");
+const configPath = path.join(__dirname, "..", "antiout-config.json");
 
-module.exports.run = async ({ api, event, Threads, Users }) => {
-  const { threadID, logMessageData, author } = event;
-  const leftID = logMessageData.leftParticipantFbId;
+module.exports = {
+  name: "event",
 
-  // Don't run if it's the bot itself
-  if (leftID === api.getCurrentUserID()) return;
+  async execute({ api, event }) {
+    if (event.logMessageType !== "log:unsubscribe") return;
 
-  // Check if antiout is enabled in thread data
-  const threadData = (await Threads.getData(threadID)).data || {};
-  if (threadData.antiout === false) return;
+    // Load config to check if anti-out is enabled
+    let config = { enabled: false };
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    }
 
-  // Get user's name
-  const name = global.data.userName.get(leftID) || await Users.getNameUser(leftID);
+    if (!config.enabled) return; // 🔒 Respect OFF toggle
 
-  // Determine if left on their own or was removed
-  const isSelfLeave = author === leftID;
+    try {
+      const threadInfo = await api.getThreadInfo(event.threadID);
+      const leftUserID = event.logMessageData.leftParticipantFbId;
+      const botID = api.getCurrentUserID();
 
-  if (isSelfLeave) {
-    api.addUserToGroup(leftID, threadID, (err) => {
-      if (err) {
-        return api.sendMessage(
-          `😞 Hindi naidagdag muli si ${name}.\nMaaaring naka-block ang bot o disabled ang Messenger nila.`,
-          threadID
-        );
-      } else {
-        return api.sendMessage(
-          `🔁 Bumalik na si ${name} sa GC!`,
-          threadID
-        );
-      }
-    });
+      if (leftUserID === botID) return;
+
+      await api.addUserToGroup(leftUserID, event.threadID);
+
+      const userInfo = await api.getUserInfo(leftUserID);
+      const userName = userInfo[leftUserID]?.name || "Kaibigan";
+
+      const msg = {
+        body: `🚨 *Bawal ang mag-leave!*  
+🔁 Ibinalik si ${userName} sa group.  
+🤖 Loyalka Anti-Out protection is ON.`,
+        mentions: [{ tag: userName, id: leftUserID }]
+      };
+
+      await api.sendMessage(msg, event.threadID);
+    } catch (err) {
+      console.error("❌ Anti-out error:", err);
+    }
   }
 };

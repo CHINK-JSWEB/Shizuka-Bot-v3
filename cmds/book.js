@@ -1,14 +1,16 @@
+// cmds/book.js
 const axios = require("axios");
 
 module.exports = {
   config: {
     name: "book",
-    version: "1.0",
+    version: "1.1",
     role: 0, // 0 = everyone can use
     countDown: 5, // Cooldown in seconds
     guide: {
-      en: "book [number]" // Help shown in bot
-    }
+      en: "book [number] - Fetch a law by number (1-48)"
+    },
+    credits: "Jonnel"
   },
 
   async execute({ api, event, args }) {
@@ -32,7 +34,9 @@ module.exports = {
 
       const { code, title, law } = res.data;
 
-      const reply = `📜 Law ${code}: ${title}\n\n"${law}"`;
+      const header = "🟢⚪🔴 𝗕𝗢𝗢𝗞 𝗜𝗡𝗙𝗢 🟢⚪🔴\n\n";
+      const reply = `${header}📜 Law ${code}: ${title}\n\n"${law}"\n\n🔹 Provided by: Jonnel`;
+
       return api.sendMessage(reply, event.threadID, event.messageID);
     } catch (err) {
       console.error("❌ API Error in book.js:", err.message);

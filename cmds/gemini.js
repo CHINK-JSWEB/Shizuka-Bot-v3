@@ -5,11 +5,11 @@ const cooldowns = new Map();
 
 module.exports = {
   name: "gemini",
-  version: "1.4",
+  version: "1.5",
   hasPrefix: false,
-  description: "Ask Gemini 2.0 Flash via API",
+  description: "Ask Gemini 2.0 Flash via API with stylish response",
   usage: "gemini <question>",
-  credits: "Nikox",
+  credits: "Jonnel",
 
   async execute({ api, event, args }) {
     const userId = event.senderID;
@@ -62,11 +62,13 @@ module.exports = {
       if (!result) throw new Error("No response from Gemini.");
 
       const message =
-        "━━━━━━━━━━━━━━━━━━━━━━━\n" +
-        "🤖 𝗚𝗲𝗺𝗶𝗻𝗶 𝟮.𝟬 𝗙𝗹𝗮𝘀𝗵 𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲:\n━━━━━━━━━━━━━━━━━━━━━━━\n" +
-        "```" +
-        result.trim() +
-        "```";
+`🟢⚪🔴 GEMINI 2.0 Flash Response:
+━━━━━━━━━━━━━━━━━━━━━━━
+\`\`\`
+${result.trim()}
+\`\`\`
+━━━━━━━━━━━━━━━━━━━━━━━
+Powered by Jonnel`;
 
       return api.sendMessage(message, event.threadID, event.messageID);
 

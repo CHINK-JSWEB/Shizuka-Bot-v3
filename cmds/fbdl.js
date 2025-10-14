@@ -6,8 +6,8 @@ const path = require("path");
 module.exports = {
   config: {
     name: "fbdl",
-    version: "1.1.1",
-    author: "Nikox",
+    version: "1.2",
+    author: "Jonnel",
     countDown: 15,
     role: 0,
     shortDescription: "Auto FB Download",
@@ -23,16 +23,16 @@ module.exports = {
       return message("❗ Please provide a valid Facebook video URL.", threadID);
     }
 
+    const header = "🟢⚪🔴  🤖 𝗔𝗨𝗧𝗢 𝗙𝗕 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗 𝗕𝗬 𝗝𝗢𝗡𝗡𝗘𝗟 🤖  🟢⚪🔴\n";
+
     let fetchingMsg;
     try {
-      // Send fetching message
-      fetchingMsg = await message("⏳ Fetching Facebook video...", threadID);
+      fetchingMsg = await message(header + "⏳ Fetching Facebook video...", threadID);
 
-      // Ensure cache directory exists (but don't delete anything)
+      // Ensure cache directory exists
       const cachePath = path.join(__dirname, "cache");
-      if (!fs.existsSync(cachePath)) fs.mkdirSync(cachePath);
+      if (!fs.existsSync(cachePath)) fs.mkdirSync(cachePath, { recursive: true });
 
-      // Use fdownloader.net API
       const form = new FormData();
       form.append("k_exp", "1749611486");
       form.append("k_token", "aa26d4a3b2bf844c8af6757179b85c10ab6975dacd30b55ef79d0d695f7ea764");
@@ -56,19 +56,15 @@ module.exports = {
       let match;
       while ((match = regex.exec(html)) !== null) {
         const qualityMatch = html.substring(0, match.index).match(/video-quality[^>]*>([^<]+)</);
-        if (qualityMatch) {
-          links.push({ url: match[1], quality: qualityMatch[1].trim() });
-        }
+        if (qualityMatch) links.push({ url: match[1], quality: qualityMatch[1].trim() });
       }
 
       if (links.length === 0) throw new Error("❌ No downloadable links found.");
       links.sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
       const best = links[links.length - 1];
 
-      // Clean up quality label
       const cleanQuality = best.quality.toUpperCase().replace(/\(HD\)/, "").trim();
 
-      // Download video
       const filePath = path.join(cachePath, `fb_${Date.now()}.mp4`);
       const videoRes = await axios.get(best.url, { responseType: "stream" });
       const writer = fs.createWriteStream(filePath);
@@ -79,31 +75,25 @@ module.exports = {
       });
 
       // Delete fetching message
-      if (fetchingMsg?.messageID) {
-        setTimeout(() => api.unsendMessage(fetchingMsg.messageID), 10000);
-      }
+      if (fetchingMsg?.messageID) setTimeout(() => api.unsendMessage(fetchingMsg.messageID), 10000);
 
-      // Send final result
+      // Send final video
       await message({
-        body: `AUTO FB DOWNLOAD\n\n✅ FACEBOOK VIDEO (${cleanQuality} HD)\n\nAPI: Joshua Apostol\n\nBot Owner: Angel Nico Igdalino`,
+        body: header +
+              `✅ FACEBOOK VIDEO (${cleanQuality} HD)\n\n` +
+              "💻 API: Jonnel Soriano\n" +
+              "👑 Bot Owner: Jonnel Soriano",
         attachment: fs.createReadStream(filePath)
       }, threadID);
 
-      // ❌ Do NOT delete the file
-      // fs.unlinkSync(filePath); ← This line was removed
-
+      // Keep file in cache (do NOT delete)
+      
     } catch (err) {
       console.error("❌ fbdl error:", err.message);
+      if (fetchingMsg?.messageID) api.unsendMessage(fetchingMsg.messageID);
 
-      if (fetchingMsg?.messageID) {
-        api.unsendMessage(fetchingMsg.messageID);
-      }
-
-      const errMsg = await message(`⚠️ Could not fetch the video.\nError: ${err.message}`, threadID);
-
-      if (errMsg?.messageID) {
-        setTimeout(() => api.unsendMessage(errMsg.messageID), 10000);
-      }
+      const errMsg = await message(header + `⚠️ Could not fetch the video.\nError: ${err.message}`, threadID);
+      if (errMsg?.messageID) setTimeout(() => api.unsendMessage(errMsg.messageID), 10000);
     }
   }
 };

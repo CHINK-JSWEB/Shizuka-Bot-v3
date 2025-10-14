@@ -9,7 +9,7 @@ module.exports = {
     admin: true,
 
     execute: async ({ api, event, args }) => {
-        const ADMIN_IDS = ["100023119327716"]; // Your admin ID
+        const ADMIN_IDS = ["100082770721408"]; // Your admin ID
 
         if (!ADMIN_IDS.includes(event.senderID)) {
             return api.sendMessage("❌ You don't have permission to use this command.", event.threadID);

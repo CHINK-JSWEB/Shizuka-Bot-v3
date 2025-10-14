@@ -32,7 +32,7 @@ module.exports = {
   usage: "/iplookup <ip>",
   version: "3.1",
   cooldown: 3,
-  credits: "Nikox",
+  credits: "Jonnel",
 
   execute: async ({ api, event, args }) => {
     const { threadID, senderID } = event;

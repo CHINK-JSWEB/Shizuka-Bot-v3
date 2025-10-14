@@ -12,7 +12,7 @@ module.exports = {
   usage: "/music <song name or youtube link>",
   description: "Search and download music from YouTube",
   cooldown: 10,
-  credits: "Nikox + GPT",
+  credits: "Jonnel + GPT",
 
   execute: async ({ api, event, args }) => {
     const { threadID, messageID } = event;

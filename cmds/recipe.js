@@ -15,7 +15,7 @@ module.exports = {
       return api.sendMessage("❗ Usage: recipe [ingredients]\nExample: recipe chicken rice", threadID, messageID);
     }
 
-    const url = `https://kaiz-apis.gleeze.com/api/recipe?ingredients=${encodeURIComponent(ingredients)}&apikey=4c92e1a3-4b13-4890-bff2-c494425a1d1d`;
+    const url = `https://kaiz-apis.gleeze.com/api/recipe?ingredients=${encodeURIComponent(ingredients)}&apikey=fef2683d-2c7c-4346-a5fe-9e153bd9b7d0`;
 
     try {
       const res = await axios.get(url);
@@ -25,7 +25,7 @@ module.exports = {
         return api.sendMessage(`⚠️ No recipe found using: ${ingredients.replace(/,/g, ", ")}`, threadID, messageID);
       }
 
-      const message = `🍽️ Nikox Recipe Suggestion\n\n📋 Ingredients: ${ingredients.replace(/,/g, ", ")}\n\n🍳 Recipe:\n${data.recipe}`;
+      const message = `🍽 Jonnel Recipe Suggestion\n\n📋 Ingredients: ${ingredients.replace(/,/g, ", ")}\n\n🍳 Recipe:\n${data.recipe}`;
       return api.sendMessage(message, threadID, messageID);
     } catch (err) {
       console.error("❌ RECIPE ERROR:", err);

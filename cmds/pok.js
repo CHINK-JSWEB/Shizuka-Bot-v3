@@ -30,7 +30,7 @@ module.exports = {
 
         // ✅ ONE message only
         api.sendMessage({
-            body: "pok 🔨😆😆\nHAHAHAHA -nico",
+            body: "pok 🔨😆😆\nHAHAHAHA -arnel",
             attachment: stream
         }, threadID, (err, info) => {
             if (!err) {

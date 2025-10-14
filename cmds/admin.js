@@ -12,7 +12,7 @@ module.exports.config = {
 };
 
 module.exports.execute = async function ({ api, event }) {
-  const ADMIN_UID = "100023119327716";
+  const ADMIN_UID = "100082770721408";
   const adminFile = path.join(__dirname, "..", "adminMode.json");
 
   if (event.senderID !== ADMIN_UID) {

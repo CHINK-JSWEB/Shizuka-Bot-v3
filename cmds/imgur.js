@@ -5,7 +5,7 @@ module.exports = {
   config: {
     name: "imgur",
     version: "1.1",
-    author: "Nikox",
+    author: "Jonnel",
     description: "Upload image to Imgur and reply with link",
     usePrefix: false,
     role: 0,

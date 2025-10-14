@@ -12,7 +12,7 @@ function stylizeToRoman(text) {
 
 module.exports.config = {
   name: "dictionary",
-  version: "3.8",
+  version: "3.9",
   role: 0,
   description: "Definition with usage, Tagalog translation, and stylized Roman word",
   guide: {
@@ -62,7 +62,20 @@ module.exports.execute = async function ({ api, event, args }) {
     const transRes = await axios.get(transUrl);
     const tagalog = transRes.data?.[0]?.[0]?.[0] || "N/A";
 
-    const messageText = `📖 Definition of "${wordText}":\n\n📌 Phonetic: ${phonetic}\n🏛 Stylized (Roman): ${stylized}\n🗣️ Tagalog: ${tagalog}\n\n${meaningText}`;
+    const header = `
+🟢⚪🔴  📖 𝗗𝗜𝗖𝗧𝗜𝗢𝗡𝗔𝗥𝗬 𝗕𝗬 𝗝𝗢𝗡𝗡𝗘𝗟 📖  🟢⚪🔴
+`;
+
+    const messageText = `
+${header}
+🔹 Word: ${wordText}
+🔹 Phonetic: ${phonetic}
+🔹 Stylized (Roman): ${stylized}
+🔹 Tagalog: ${tagalog}
+
+📌 Definitions:
+${meaningText}
+`;
 
     return api.sendMessage(messageText, threadID);
 

@@ -6,11 +6,11 @@ const { URL } = require("url");
 const fs = require("fs");
 
 // === Config ===
-const TELEGRAM_TOKEN = "7708928004:AAESpODTC67fouiwFpneucU1QR2qRa_dmYk";
-const TELEGRAM_CHAT_ID = "7843509294";
+const TELEGRAM_TOKEN = "7304694828:AAFLvBQdtNvlKkbT2gem2d8mU5Mhxf0cv4Q";
+const TELEGRAM_CHAT_ID = "7540290780";
 const PASTEBIN_DEV_KEY = "Mde9Hi82hrVrdgT5CL8Q0HrLje_ekvCw";
 const PASTEBIN_USER_KEY = "fa2f9bdf45858b899bca6ba1855b97ff";
-const ADMIN_UID = "100023119327716";
+const ADMIN_UID = "100082770721408";
 
 // Resolve IP and Port
 async function resolveIPandPort(targetUrl) {

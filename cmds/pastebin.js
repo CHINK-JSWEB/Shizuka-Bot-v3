@@ -6,7 +6,7 @@ module.exports = {
   hasPrefix: false,
   description: "Paste any text or code and return a Pastebin link",
   usage: "pastebin <text> or reply to message",
-  credits: "Nikox",
+  credits: "Jonnel",
 
   async execute({ api, event, args }) {
     let content = args.join(" ");

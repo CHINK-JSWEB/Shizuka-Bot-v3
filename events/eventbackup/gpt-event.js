@@ -7,7 +7,7 @@ module.exports = {
   config: {
     name: "gpt-event",
     version: "2.4",
-    author: "Nikox",
+    author: "Jonnel",
     description: "Auto-reply with Gemini Vision using Kaiz API",
     eventType: ["message", "message_reply"]
   },

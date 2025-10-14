@@ -6,7 +6,7 @@ module.exports = {
   config: {
     name: "shoti",
     version: "2.0",
-    author: "Nikox",
+    author: "Jonnel",
     countDown: 5,
     role: 0,
     shortDescription: "Random Shoti video with info",
@@ -27,7 +27,7 @@ module.exports = {
     });
 
     try {
-      const res = await axios.get("https://kaiz-apis.gleeze.com/api/shoti?apikey=4c92e1a3-4b13-4890-bff2-c494425a1d1d");
+      const res = await axios.get("https://kaiz-apis.gleeze.com/api/shoti?apikey=fef2683d-2c7c-4346-a5fe-9e153bd9b7d0");
       const data = res.data.shoti;
 
       if (!data || !data.videoUrl) {
@@ -42,7 +42,7 @@ module.exports = {
 📝 Title: ${data.title}
 🌎 Region: ${data.region}
 ⏱ Duration: ${data.duration}s
-📸 By: Nikox`;
+📸 By: Jonnel`;
 
       const videoStream = await axios.get(data.videoUrl, { responseType: "stream" });
 

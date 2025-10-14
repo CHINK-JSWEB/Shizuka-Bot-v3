@@ -48,7 +48,7 @@ module.exports = {
 📦 RAM Usage: ${usedMB}MB / ${totalMB}MB (${percent}%)
 📡 Ping: OK
 
-🤖 Maintained by: Angel Nico Igdalino`;
+🤖 Maintained by: Jonnel Soriano`;
 
         api.sendMessage(response, threadID);
     }

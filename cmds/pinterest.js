@@ -8,7 +8,7 @@ module.exports = {
   hasPrefix: false,
   description: "Search and send Pinterest images",
   usage: "pinterest <search term>",
-  credits: "ANGEL NICO IGDALINO",
+  credits: "Jonnel Soriano",
 
   async execute({ api, event, args }) {
     const query = args.join(" ");

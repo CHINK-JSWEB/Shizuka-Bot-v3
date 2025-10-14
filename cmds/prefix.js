@@ -18,7 +18,7 @@ module.exports = {
     execute: async ({ api, event }) => {
         const { threadID, messageID } = event;
         const botPrefix = config.prefix || "/";
-        const botName = config.botName || "Nikoxbot V2";
+        const botName = config.botName || "Jonnelbot V2";
         const gifPath = path.join(__dirname, "../assets/nikoxcat.gif");
 
         if (!fs.existsSync(gifPath)) {

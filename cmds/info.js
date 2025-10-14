@@ -9,12 +9,12 @@ module.exports = {
   usage: "[info]",
   cooldown: 5,
   hasPermission: 0,
-  credits: "Nikox",
+  credits: "Arnel",
 
   async execute({ api, event }) {
-    const adminUID = "100023119327716";
-    const adminName = "Nico files";
-    const botName = "NikoxBot 🌿";
+    const adminUID = "100082770721408";
+    const adminName = "Jonnel files";
+    const botName = "Jonnelbot 🌿";
     const botPrefix = "help";
 
     const now = new Date();

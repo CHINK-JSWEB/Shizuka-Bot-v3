@@ -2,7 +2,7 @@ module.exports = {
   config: {
     name: "out",
     version: "1.1",
-    author: "Nikox",
+    author: "Jonnel",
     countDown: 3,
     role: 0,
     shortDescription: "Make bot leave the group",

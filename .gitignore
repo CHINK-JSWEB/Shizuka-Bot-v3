@@ -4,3 +4,4 @@ videos/
 scrape_logs.txt
 sim-last-reply.json
 
+cmds/cache/*.mp4

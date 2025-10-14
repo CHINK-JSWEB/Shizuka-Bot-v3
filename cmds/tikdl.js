@@ -10,7 +10,7 @@ module.exports = {
   cooldown: 10,
   hasPermission: 0,
   usePrefix: true,
-  credits: "Nikox",
+  credits: "Jonnel",
 
   async execute({ api, event, args }) {
     const { threadID, messageID } = event;
