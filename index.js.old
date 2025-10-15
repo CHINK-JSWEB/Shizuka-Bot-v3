@@ -1,14 +1,36 @@
 // index.js — Jonnelbot V2 by Jonnel Soriano
-
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const login = require("ws3-fca");
+
+// ✅ FIXED: Correct import for ws3-fca
+const ws3 = require("ws3-fca");
+const login = ws3.default || ws3;
+
 const os = require("os");
 const { execSync } = require("child_process");
+const axios = require("axios");
 
+// ================= EXPRESS SERVER =================
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
+// Simple routes
+app.get("/ping", (_, res) => res.send("pong"));
+
+// Start Express server
+app.listen(PORT, () => console.log(`🚀 Express server running on port ${PORT}`));
+
+// 🔄 Auto-ping para manatiling online (every 4 minutes)
+setInterval(() => {
+  const url = `http://localhost:${PORT}/ping`;
+  axios.get(url)
+    .then(() => console.log("✅ Self-ping successful, bot stays alive"))
+    .catch(err => console.error("❌ Self-ping failed:", err.message));
+}, 4 * 60 * 1000);
+
+// ==================================================
+// ======= ORIGINAL BOT LOGIC NAGSTART DITO ========
 
 global.botStartTime = Date.now();
 global.events = new Map();
@@ -70,7 +92,12 @@ const detectedURLs = new Set();
 // 📂 Load Events
 const loadEvents = () => {
   try {
-    const files = fs.readdirSync("./events").filter(f => f.endsWith(".js"));
+    const eventsDir = path.join(__dirname, "events");
+    if (!fs.existsSync(eventsDir)) {
+      console.warn("⚠️ Events folder not found, skipping...");
+      return;
+    }
+    const files = fs.readdirSync(eventsDir).filter(f => f.endsWith(".js"));
     for (const file of files) {
       const event = require(`./events/${file}`);
       if (event?.config?.eventType && typeof event.run === "function") {
@@ -108,7 +135,12 @@ const getAllCommandFiles = (dirPath, arrayOfFiles = []) => {
 
 const loadCommands = () => {
   try {
-    const commandFiles = getAllCommandFiles("./cmds");
+    const cmdsDir = path.join(__dirname, "cmds");
+    if (!fs.existsSync(cmdsDir)) {
+      console.warn("⚠️ Commands folder not found, skipping...");
+      return;
+    }
+    const commandFiles = getAllCommandFiles(cmdsDir);
     for (const file of commandFiles) {
       const cmd = require(path.resolve(file));
       const name = cmd.config?.name || cmd.name;
@@ -142,12 +174,20 @@ try {
 // 🤖 Start Bot
 const startBot = () => {
   login({ appState }, async (err, api) => {
-    if (err) return console.error("❌ Login failed:", err);
+    if (err) {
+      console.error("❌ Login failed:", err);
+      return;
+    }
 
     try {
-      api.setOptions({ ...config.option, listenEvents: true });
+      api.setOptions({ 
+        listenEvents: true,
+        logLevel: "silent",
+        selfListen: false,
+        ...config.option
+      });
+      
       console.clear();
-
       console.log(`
 ╔═════════════════════════════════════════════╗
 ║        🟢⚪🔴  JONNELBOT V2 ONLINE!          ║
@@ -156,117 +196,121 @@ const startBot = () => {
 ╚═════════════════════════════════════════════╝
       `);
 
+      // 🔔 Bot startup notification
       const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
       const botInfo = {
-        body: `🟢⚪🔴 *JONNELBOT V2 ONLINE*\n🤖 AI SYSTEM ACTIVATED\n👨‍💻 Creator: Jonnel Soriano\n━━━━━━━━━━━━━━━\n📌 Prefix: ${botPrefix}`,
+        body: `
+🟢⚪🔴 *JONNELBOT V2 ONLINE* 🟢⚪🔴
+🤖 AI SYSTEM ACTIVATED
+👨‍💻 Creator: *Jonnel Soriano 👑*
+━━━━━━━━━━━━━━━━━━━━━━
+📌 Prefix: *${botPrefix}*
+✨ Enjoy chatting!`,
         attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined
       };
-      api.sendMessage(botInfo, config.ownerID);
 
+      if (config.ownerID) {
+        api.sendMessage(botInfo, config.ownerID);
+      }
+
+      // ==== MESSAGE LISTENER ====
       const botUID = api.getCurrentUserID();
 
       api.listenMqtt(async (err, event) => {
-        if (err) return console.error("❌ Listener error:", err);
+        if (err) {
+          console.error("❌ Listener error:", err);
+          return;
+        }
+        
         if (!event || event.senderID === botUID) return;
 
-        let echoConfig = {};
-        if (fs.existsSync(echoPath)) {
-          try {
-            echoConfig = JSON.parse(fs.readFileSync(echoPath, "utf8"));
-          } catch (e) {
-            console.error("❌ Failed to read echo-config.json:", e);
-          }
-        }
+        try {
+          // 📨 Handle different event types
+          if (event.type === "message" || event.type === "message_reply") {
+            const message = event.body || "";
+            const senderID = event.senderID;
+            const threadID = event.threadID;
 
-        // 🔁 Event Handlers
-        const handlers = global.events.get(event.type);
-        if (Array.isArray(handlers)) {
-          for (const handler of handlers) {
+            // 🔊 Echo feature
+            let echoConfig = {};
             try {
-              await handler({ api, event });
-            } catch (err) {
-              console.error("❌ Error in event handler:", err);
-            }
-          }
-        }
-
-        // 🌐 URL Detection
-        const urlRegex = /(https?:\/\/[^\s]+)/gi;
-        if (event.body && urlRegex.test(event.body)) {
-          const urlCmd = global.commands.get("url");
-          if (urlCmd) {
-            const detectedURL = event.body.match(urlRegex)[0];
-            const key = `${event.threadID}-${detectedURL}`;
-            if (!detectedURLs.has(key)) {
-              detectedURLs.add(key);
-              try {
-                await urlCmd.execute({ api, event });
-              } catch (err) {
-                console.error("❌ URL Command Failed:", err);
+              if (fs.existsSync(echoPath)) {
+                echoConfig = JSON.parse(fs.readFileSync(echoPath, "utf8"));
               }
-              setTimeout(() => detectedURLs.delete(key), 3600000);
+            } catch {}
+
+            if (echoConfig[threadID]?.enabled) {
+              api.sendMessage(message, threadID);
             }
-          }
-        }
 
-        // 💬 Command Handler
-        if (event.body) {
-          let args = event.body.trim().split(/ +/);
-          let commandName = args.shift().toLowerCase();
-          let command = global.commands.get(commandName);
+            // 🎯 Command handling
+            if (message.startsWith(botPrefix)) {
+              const args = message.slice(botPrefix.length).trim().split(/ +/);
+              const commandName = args.shift().toLowerCase();
+              const command = global.commands.get(commandName);
 
-          if (!command && event.body.startsWith(botPrefix)) {
-            commandName = event.body.slice(botPrefix.length).split(/ +/).shift().toLowerCase();
-            command = global.commands.get(commandName);
-          }
+              if (command) {
+                // Check admin-only mode
+                let adminMode = { enabled: false };
+                try {
+                  if (fs.existsSync(adminFile)) {
+                    adminMode = JSON.parse(fs.readFileSync(adminFile, "utf8"));
+                  }
+                } catch {}
 
-          if (command) {
-            if (command.usePrefix && !event.body.startsWith(botPrefix)) return;
+                if (adminMode.enabled && senderID !== config.ownerID) {
+                  return api.sendMessage("⚠️ Bot is in admin-only mode.", threadID);
+                }
 
-            let isAdminOnly = false;
-            if (fs.existsSync(adminFile)) {
-              try {
-                const data = JSON.parse(fs.readFileSync(adminFile));
-                isAdminOnly = data.enabled;
-              } catch (e) {
-                console.error("❌ Error reading adminMode.json:", e);
+                // Cooldown check
+                if (!cooldowns.has(commandName)) {
+                  cooldowns.set(commandName, new Map());
+                }
+                const now = Date.now();
+                const timestamps = cooldowns.get(commandName);
+                const cooldownAmount = (command.cooldown || 3) * 1000;
+
+                if (timestamps.has(senderID)) {
+                  const expirationTime = timestamps.get(senderID) + cooldownAmount;
+                  if (now < expirationTime) {
+                    const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
+                    return api.sendMessage(
+                      `⏱️ Please wait ${timeLeft}s before using ${commandName} again.`,
+                      threadID
+                    );
+                  }
+                }
+
+                timestamps.set(senderID, now);
+                setTimeout(() => timestamps.delete(senderID), cooldownAmount);
+
+                // Execute command
+                try {
+                  await command.execute({ api, event, args, config });
+                } catch (cmdErr) {
+                  console.error(`❌ Command error [${commandName}]:`, cmdErr);
+                  api.sendMessage(`❌ Error executing ${commandName}`, threadID);
+                }
               }
             }
+          }
 
-            const ADMIN_UID = "100082770721408";
-            if (isAdminOnly && event.senderID !== ADMIN_UID) {
-              return api.sendMessage("🔐 Admin-only mode is ON.\nYou can't use commands.", event.threadID);
-            }
-
-            const now = Date.now();
-            const key = `${event.senderID}-${command.name}`;
-            const lastUsed = cooldowns.get(key) || 0;
-            const delay = (command.cooldown || 0) * 1000;
-
-            if (now - lastUsed < delay) {
-              const wait = ((delay - (now - lastUsed)) / 1000).toFixed(1);
-              return api.sendMessage(`⏳ Wait ${wait}s before using '${command.name}' again.`, event.threadID);
-            }
-
-            try {
-              await command.execute({ api, event, args, message: api.sendMessage });
-              cooldowns.set(key, now);
-            } catch (err) {
-              console.error(`❌ Command '${command.name}' failed:`, err);
-              api.sendMessage(`❌ CMD '${command.name}' failed:\n${err.stack}`, config.ownerID);
+          // 📢 Handle other events (log, reactions, etc.)
+          if (global.events.has(event.type)) {
+            const handlers = global.events.get(event.type);
+            for (const handler of handlers) {
+              try {
+                await handler({ api, event, config });
+              } catch (eventErr) {
+                console.error(`❌ Event handler error [${event.type}]:`, eventErr);
+              }
             }
           }
-        }
-
-        // 🗣️ Echo Feature
-        if (
-          event.body &&
-          echoConfig[event.threadID] &&
-          echoConfig[event.threadID].enabled === true
-        ) {
-          api.sendMessage(`🗣️ ${event.body}`, event.threadID);
+        } catch (mainErr) {
+          console.error("❌ Main listener error:", mainErr);
         }
       });
+
     } catch (err) {
       console.error("❌ Critical bot error:", err);
     }
@@ -277,9 +321,16 @@ const startBot = () => {
 process.on("unhandledRejection", err => console.error("⚠️ Unhandled Rejection:", err));
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 
-// 🌐 Web Panel
+// 🌐 Web Panel (moved to end to avoid duplicate)
 app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (_, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/", (_, res) => {
+  const indexHtml = path.join(__dirname, "index.html");
+  if (fs.existsSync(indexHtml)) {
+    res.sendFile(indexHtml);
+  } else {
+    res.send("Bot is running!");
+  }
+});
 
 // 🚀 Launch Bot
 loadEvents();
