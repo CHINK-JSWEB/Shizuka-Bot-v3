@@ -1,7 +1,7 @@
 node_modules/
 videos/
-*.mp4
+#*.mp4
 scrape_logs.txt
 sim-last-reply.json
 
-cmds/cache/*.mp4
+#cmds/cache/*.mp4
