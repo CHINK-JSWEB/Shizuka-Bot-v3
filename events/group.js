@@ -1,4 +1,4 @@
-const fs = require("fs-extra");
+const fs = require("fs");
 const path = require("path");
 
 module.exports = {
@@ -10,52 +10,53 @@ module.exports = {
         const threadInfo = await api.getThreadInfo(event.threadID);
         const totalMembers = threadInfo.participantIDs.length;
         const botID = api.getCurrentUserID();
-        const gcName = threadInfo.threadName || "this group";
+        const groupName = threadInfo.threadName || "this group";
 
         const newUsers = event.logMessageData.addedParticipants;
+        const gifPath = path.join(__dirname, "../assets/welcome.gif");
+
         for (const user of newUsers) {
           const userID = user.userFbId;
-          const userName = user.fullName || "Kaibigan";
-
-          // 📝 === Logger Section ===
-          // Log to console
-          console.log(`[JOIN] ${userName} (${userID}) joined ${gcName}`);
-
-          // Save to a file (append mode)
-          const logLine = `${new Date().toISOString()} - ${userName} (${userID}) joined ${gcName}\n`;
-          fs.appendFileSync(path.join(__dirname, "..", "join-logs.txt"), logLine);
-
-          // === End Logger Section ===
+          const userName = user.fullName || "there";
 
           const mentions = [
             { tag: `@${userName}`, id: userID },
-            { tag: "@Jonnel Soriano", id: "100082770721408" }
+            { tag: "@Jonnel", id: "100082770721408" }
           ];
 
+          // Unicode Bold Text Helper
+          const bold = (text) => text.replace(/[A-Za-z0-9]/g, (c) => {
+            const code = c.charCodeAt(0);
+            if (code >= 65 && code <= 90) return String.fromCodePoint(code + 0x1D3BF);
+            if (code >= 97 && code <= 122) return String.fromCodePoint(code + 0x1D3B9);
+            return c;
+          });
+
+          const messageBody = `
+🟢⚪🔴  ${bold("WELCOME")}  🟢⚪🔴
+
+👋 𝐇𝐞𝐥𝐥𝐨 ${bold(`@${userName}`)}! 🎉  
+Welcome to ${bold(groupName)} 🌟
+
+👥 𝗧𝗼𝘁𝗮𝗹 𝗠𝗲𝗺𝗯𝗲𝗿𝘀: ${totalMembers}  
+We’re happy to have you here! 💬✨
+
+👨‍💻 𝗔𝗱𝗺𝗶𝗻: ${bold("Jonnel Soriano")}  
+Bot Creator: ${bold("Jonnel Soriano")} 🖤
+
+Enjoy your stay and have fun! 🎊`;
+
           const message = {
-            body:
-`👋 Welcome home, @${userName}!
-
-🏡 You’re now part of **${gcName}** — a family where laughter, support, and real connections thrive.
-
-👑 Admin: @Jonnel Soriano
-👥 Total Members: ${totalMembers}
-
-💬 Feel free to be yourself.
-We're happy to have you here! 💚`,
-            mentions
+            body: messageBody,
+            mentions,
+            attachment: fs.createReadStream(gifPath)
           };
-
-          const videoPath = path.join(__dirname, "..", "assets", "welcome.mp4");
-          if (fs.existsSync(videoPath)) {
-            message.attachment = fs.createReadStream(videoPath);
-          }
 
           await api.sendMessage(message, event.threadID);
 
+          // If bot itself is added, rename it
           if (userID === botID) {
-            const newNickname = "Jonnel Bot Assistant 🤖";
-            await api.changeNickname(newNickname, event.threadID, botID);
+            await api.changeNickname("Jonnelbot V3", event.threadID, botID);
           }
         }
       } catch (err) {

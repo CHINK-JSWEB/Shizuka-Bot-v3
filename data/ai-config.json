@@ -1,4 +1,3 @@
 {
-  "status": "on",
-  "aiEnabled": false
+  "on": false
 }

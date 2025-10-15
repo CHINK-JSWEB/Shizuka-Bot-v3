@@ -6,7 +6,7 @@ module.exports = {
   name: "gif",
   version: "2.0",
   description: "Search and send a random GIF using Rapido API",
-  credits: "Arnel",
+  credits: "Jonnel",
   usage: "gif <search>",
   cooldown: 3,
   hasPrefix: false,

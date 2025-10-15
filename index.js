@@ -156,12 +156,21 @@ const startBot = () => {
 ╚═════════════════════════════════════════════╝
       `);
 
-      const gifPath = path.join(__dirname, "assets", "nikoxcat.gif");
-      const botInfo = {
-        body: `🟢⚪🔴 *JONNELBOT V2 ONLINE*\n🤖 AI SYSTEM ACTIVATED\n👨‍💻 Creator: Jonnel Soriano\n━━━━━━━━━━━━━━━\n📌 Prefix: ${botPrefix}`,
-        attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined
-      };
-      api.sendMessage(botInfo, config.ownerID);
+      // 🔔 Bot startup info with fixed GIF
+const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
+
+const botInfo = {
+    body: `
+🟢⚪🔴 *JONNELBOT V2 ONLINE* 🟢⚪🔴
+🤖 AI SYSTEM ACTIVATED
+👨‍💻 Creator: *Jonnel Soriano 👑*
+━━━━━━━━━━━━━━━━━━━━━━
+📌 Prefix: *${botPrefix}*
+✨ Enjoy chatting!`,
+    attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined
+};
+
+api.sendMessage(botInfo, config.ownerID);
 
       const botUID = api.getCurrentUserID();
 

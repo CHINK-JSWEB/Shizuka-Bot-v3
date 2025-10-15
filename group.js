@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 module.exports = {
     name: "event",
 
@@ -7,35 +10,46 @@ module.exports = {
                 const threadInfo = await api.getThreadInfo(event.threadID);
                 const totalMembers = threadInfo.participantIDs.length;
                 const botID = api.getCurrentUserID();
+                const groupName = threadInfo.threadName || "this group";
 
                 const newUsers = event.logMessageData.addedParticipants;
+                const gifPath = path.join(__dirname, "../assets/welcome.gif");
+
                 for (const user of newUsers) {
                     const userID = user.userFbId;
                     const userName = user.fullName || "there";
 
                     const mentions = [
                         { tag: `@${userName}`, id: userID },
-                        { tag: "@Jonnel", id: "100082770721408" },
-                        { tag: "@BotCreator", id: "100082770721408" }
+                        { tag: "@Jonnel", id: "100082770721408" }
                     ];
 
+                    // Dynamic, friendly welcome message
+                    const messageBody = `
+🔴⚪🟢🔴⚪🟢🔴⚪🟢
+👋 *Hello @${userName}!* 🎉
+Welcome to *${groupName}*! 🌟
+
+👥 *Total Members:* ${totalMembers} 👀
+We hope you have a great time chatting, sharing, and enjoying with everyone! 💬✨
+
+👨‍💻 [ADMIN] *@Jonnel Soriano*: Feel free to ask questions anytime! 💻
+Bot creator: *@Jonnel Soriano* 🖤
+
+Enjoy your stay! 🎊
+🔴⚪🟢🔴⚪🟢🔴⚪🟢`;
+
                     const message = {
-                        body: `👋Jonnel- Wilkom Suldyir@${userName} to the group!
-👥 Total members: ${totalMembers}
-
-
-👨‍💻[ADMIN] @Jonnel Soriano: W1lkom suldyir!! 
-
-Bot creator:  @Jonnel Soriano`,
-                        mentions
+                        body: messageBody,
+                        mentions,
+                        attachment: fs.createReadStream(gifPath)
                     };
 
                     await api.sendMessage(message, event.threadID);
 
-                    // Set bot nickname if it's the one added
+                    // Change bot nickname if added
                     if (userID === botID) {
-                        const newNickname = "Jonnelbot V2";
-                        await api.changeNickname(newNickname, event.threadID, botID);
+                        await api.changeNickname("Jonnelbot V2", event.threadID, botID);
                     }
                 }
             } catch (err) {

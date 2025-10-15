@@ -3,32 +3,42 @@ const fs = require("fs-extra");
 module.exports = {
   name: "userlist",
   description: "Show all users in the group (name + UID)",
-  credits: "ArnelBot",
-  hasPrefix: false, // change to true if you want to use prefix (like !userlist)
+  credits: "Jonnel Soriano 👑",
+  hasPrefix: false,
   cooldown: 3,
 
   async execute({ api, event }) {
     try {
-      // get group information
+      // 🧠 Get group information
       const threadInfo = await api.getThreadInfo(event.threadID);
       const members = threadInfo.participantIDs || [];
+      const groupName = threadInfo.threadName || "this group";
 
-      // build message
-      let msg = `👥 User List for: ${threadInfo.threadName || "this group"}\n`;
-      msg += `Total Members: ${members.length}\n\n`;
+      // 🧾 Header info with Unicode styling
+      let msg = `🟢⚪🔴  𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗠𝗕𝗘𝗥𝗦 𝗟𝗜𝗦𝗧  🔴⚪🟢\n`;
+      msg += `───────────────────────────────\n`;
+      msg += `🏡 𝗚𝗿𝗼𝘂𝗽: *${groupName}*\n👥 𝗧𝗼𝘁𝗮𝗹 𝗠𝗲𝗺𝗯𝗲𝗿𝘀: *${members.length}*\n`;
+      msg += `───────────────────────────────\n\n`;
 
-      // loop all participants and get name+UID
+      // 🔍 Loop through all participants and get names
+      let count = 1;
       for (const id of members) {
-        let name = "";
+        let name = "Unknown";
         try {
           const userInfo = await api.getUserInfo(id);
           name = userInfo[id]?.name || "Unknown";
         } catch {
           name = "Unknown";
         }
-        msg += `• ${name} (${id})\n`;
+        msg += `✨ ${count}. 𝗡𝗮𝗺𝗲: ${name}\n🆔 UID: ${id}\n\n`;
+        count++;
       }
 
+      // 🖋️ Footer with developer credit
+      msg += `───────────────────────────────\n`;
+      msg += `👑 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿: *Jonnel Soriano*\n🖤 𝗣𝗼𝘄𝗲𝗿𝗲𝗱 𝗯𝘆: 𝗝𝗼𝗻𝗻𝗲𝗹𝗕𝗼𝘁 𝗔𝗜 © ${new Date().getFullYear()}`;
+
+      // ✅ Send message
       await api.sendMessage(msg, event.threadID, event.messageID);
     } catch (err) {
       console.error("❌ Error in userlist command:", err);

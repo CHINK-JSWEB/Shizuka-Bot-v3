@@ -1,18 +1,16 @@
 {
-  "name": "fbot",
-  "version": "1.0.0",
+  "name": "shizuka-bot-v3",
+  "version": "3.0.0",
+  "description": "Shizuka AI Messenger Bot - powered by Jonnel AI System",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
-  "keywords": [],
-  "author": "",
+  "author": "Jonnel Soriano",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "@google/generative-ai": "^0.24.1",
-    "@xaviabot/fb-downloader": "^1.0.14",
     "axios": "^1.10.0",
     "date-fns": "^4.1.0",
     "express": "^4.21.2",
@@ -21,22 +19,20 @@
     "moment-timezone": "^0.6.0",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
-    "node-schedule": "^2.1.1",
     "npmlog": "^7.0.1",
     "pidusage": "^4.0.0",
     "scrape-yt": "^1.4.8",
-    "timezone": "^1.0.23",
     "ws": "^8.18.3",
     "ws3-fca": "^1.0.47",
-    "yt-search": "^2.13.1",
-    "ytdl-core": "^4.11.5"
+    "ytdl-core": "^4.11.5",
+    "yt-search": "^2.13.1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/magi17/Fbot-V1.3.git"
+    "url": "https://github.com/Maharlika-JS/Shizuka-Bot-v3.git"
   },
   "bugs": {
-    "url": "https://github.com/magi17/Fbot-V1.3/issues"
+    "url": "https://github.com/Maharlika-JS/Shizuka-Bot-v3/issues"
   },
-  "homepage": "https://github.com/magi17/Fbot-V1.3#readme"
+  "homepage": "https://github.com/Maharlika-JS/Shizuka-Bot-v3#readme"
 }

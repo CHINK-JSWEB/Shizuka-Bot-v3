@@ -1,14 +1,21 @@
 const axios = require("axios");
 
 module.exports = {
-  name: "fbuid",
-  version: "2.1",
-  hasPrefix: false,
-  description: "Kumuha ng Facebook UID gamit ang link (no API required)",
-  usage: "fbuid <facebook link>",
-  credits: "Jonnel UID (scraper)",
+  config: {
+    name: "fbuid",
+    version: "3.1",
+    author: "Jonnel Soriano 👑",
+    role: 0,
+    countDown: 5,
+    shortDescription: "Kumuha ng Facebook UID gamit ang kahit anong link 🆔",
+    longDescription: "Gamitin para makuha ang UID ng isang Facebook link gamit ang Kaiz API.",
+    category: "tools",
+    guide: {
+      en: "fbuid <facebook link>"
+    }
+  },
 
-  async execute({ api, event, args, message }) {
+  onStart: async function ({ api, event, args, message }) {
     const { threadID, messageID } = event;
     const link = args.join(" ").trim();
 
@@ -19,52 +26,55 @@ module.exports = {
         messageID
       );
 
-    // Brand header
+    const apiKey = "fef2683d-2c7c-4346-a5fe-9e153bd9b7d0";
+    const apiUrl = `https://kaiz-apis.gleeze.com/api/fbuid?url=${encodeURIComponent(link)}&apikey=${apiKey}`;
+
+    // 🟢 Header
     const header = "🟢⚪🔴  🤖 𝗙𝗕 𝗨𝗜𝗗 𝗕𝗬 𝗝𝗢𝗡𝗡𝗘𝗟 🤖  🟢⚪🔴\n";
-    const loadingMsg = await message(header + "⏳ Kinukuha ang UID, sandali lang...", threadID);
+
+    const loading = await message(`${header}\n⏳ Kinukuha ang UID...`, threadID);
 
     try {
-      const { data } = await axios.get(link, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119 Safari/537.36",
-        },
-      });
+      const res = await axios.get(apiUrl);
+      const data = res.data;
 
-      // Hanapin ang UID sa HTML
-      const match =
-        data.match(/"entity_id":"(\d+)"/) ||
-        data.match(/"userID":"(\d+)"/) ||
-        data.match(/fb:\/\/profile\/(\d+)/);
-
-      if (match && match[1]) {
-        const uid = match[1];
-
-        // Delete loading message after success
-        if (loadingMsg?.messageID) setTimeout(() => api.unsendMessage(loadingMsg.messageID), 5000);
-
+      if (!data || !data.result || !data.result.uid) {
+        if (loading?.messageID) api.unsendMessage(loading.messageID);
         return api.sendMessage(
-          header +
-            `✅ UID nakuha!\n\n🔹 Link: ${link}\n🆔 UID: ${uid}\n\n👑 Owner: Jonnel`,
-          threadID
-        );
-      } else {
-        if (loadingMsg?.messageID) api.unsendMessage(loadingMsg.messageID);
-
-        return api.sendMessage(
-          header + "❌ Hindi makita ang UID sa page. Siguraduhing public ang link at subukan ulit.",
+          `${header}\n❌ Hindi makita ang UID.\nSiguraduhing public o valid ang link.`,
           threadID
         );
       }
+
+      const uid = data.result.uid;
+      const type = data.result.type || "Unknown";
+      const name = data.result.name || "Unknown User";
+      const timePH = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+
+      // ✅ Delete loading message after success
+      if (loading?.messageID) api.unsendMessage(loading.messageID);
+
+      const output = `${header}
+✅ 𝗨𝗜𝗗 𝗡𝗔𝗞𝗨𝗛𝗔!
+
+🔹 𝗣𝗮𝗻𝗴𝗮𝗹𝗮𝗻: ${name}
+🔹 𝗟𝗶𝗻𝗸: ${link}
+🆔 𝗨𝗜𝗗: ${uid}
+📦 𝗧𝘆𝗽𝗲: ${type}
+
+👑 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿: 𝗝𝗼𝗻𝗻𝗲𝗹 𝗦𝗼𝗿𝗶𝗮𝗻𝗼
+🕒 𝗗𝗮𝘁𝗲 & 𝗧𝗶𝗺𝗲: ${timePH}`;
+
+      return api.sendMessage(output, threadID);
     } catch (err) {
       console.error("❌ FBUID Error:", err.message);
 
-      if (loadingMsg?.messageID) api.unsendMessage(loadingMsg.messageID);
+      if (loading?.messageID) api.unsendMessage(loading.messageID);
 
       return api.sendMessage(
-        header + "⚠️ Nagka-error habang kinukuha ang UID. Pakisubukan ulit mamaya.",
+        `${header}\n⚠️ Nagka-error habang kinukuha ang UID.\nSubukan ulit mamaya.`,
         threadID
       );
     }
-  },
+  }
 };

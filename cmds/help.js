@@ -1,6 +1,12 @@
+const fs = require("fs");
+const path = require("path");
+
+// Random decorative emojis for commands
+const bullets = ["✨", "🎯", "💡", "🛠️", "🎉", "🔥", "🌟", "💎", "⚡", "🌀"];
+
 module.exports = {
   name: "help",
-  version: "6.3",
+  version: "6.8",
   author: "Jonnel",
   countDown: 5,
   role: 0,
@@ -11,76 +17,81 @@ module.exports = {
 
   async execute({ api, event, args }) {
     const { threadID, messageID } = event;
-
-    // All commands from your global registry
     const allCommands = Array.from(global.commands.values());
 
-    // If a command name is passed, show its details
+    // Show specific command details
     if (args.length === 1 && isNaN(args[0])) {
       const cmdName = args[0].toLowerCase();
       const cmd = global.commands.get(cmdName);
-      if (!cmd) {
-        return api.sendMessage(`❌ Command "${cmdName}" not found.`, threadID, messageID);
-      }
+      if (!cmd) return api.sendMessage(`❌ Command "${cmdName}" not found.`, threadID, messageID);
 
-      const details =
-`📄 COMMAND: ${cmd.name.toUpperCase()}
-📚 DESCRIPTION: ${cmd.longDescription || cmd.shortDescription || "No description"}
-📝 USAGE: ${cmd.guide || "No usage info"}
-🕓 COOLDOWN: ${cmd.countDown || 0}s
-🛠 VERSION: ${cmd.version || "1.0"}
-🔑 ROLE: ${cmd.role === 1 ? "ADMIN ONLY 🔐" : "EVERYONE ✅"}`;
-
+      const details = `
+🟢⚪🔴 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗗𝗘𝗧𝗔𝗜𝗟𝗦 🔴⚪🟢
+╭─〔 📄 ${cmd.name.toUpperCase()} 〕─╮
+📚 Description : ${cmd.longDescription || cmd.shortDescription || "No description"}
+📝 Usage       : ${cmd.guide || "No usage info"}
+🕓 Cooldown    : ${cmd.countDown || 0}s
+🛠 Version     : ${cmd.version || "1.0"}
+🔑 Role        : ${cmd.role === 1 ? "ADMIN ONLY 🔐" : "EVERYONE ✅"}
+╰─────────────────────────────╯
+      `;
       return api.sendMessage(details, threadID, messageID);
     }
 
-    // Group commands by category
-    const grouped = {};
-    for (const cmd of allCommands) {
-      const cat = cmd.category || "Others";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(cmd.name);
-    }
-
-    // flatten commands (for pagination)
-    const flatList = [];
-    for (const [cat, names] of Object.entries(grouped)) {
-      flatList.push({ cat, names });
-    }
-
-    // pagination
-    const perPage = 25;
+    // Pagination
+    const perPage = 10;
+    const totalPages = Math.ceil(allCommands.length / perPage);
     const page = args.length === 1 && !isNaN(args[0]) ? parseInt(args[0]) : 1;
-    const totalPages = Math.ceil(flatList.length / perPage);
-    const pageIndex = page - 1;
 
     if (page < 1 || page > totalPages) {
       return api.sendMessage(`❌ Invalid page number. (1 - ${totalPages})`, threadID, messageID);
     }
 
-    const pageItems = flatList.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
+    const pageItems = allCommands.slice((page - 1) * perPage, page * perPage);
 
-    // Format like the picture
-    let msg = `╭───〔 📜 Available Commands 〕───╮\n`;
-    msg += `📊 Total Commands: ${allCommands.length}\n`;
-    msg += `📑 Page: ${page}/${totalPages}\n\n`;
+    // Emoji per category
+    const categoryEmoji = {
+      "info": "📁",
+      "edu": "📚",
+      "learn": "📚",
+      "image": "🖼️",
+      "music": "🎧",
+      "other": "👥"
+    };
 
-    for (const section of pageItems) {
-      const { cat, names } = section;
-      // choose emoji based on category
-      let emoji = "📁";
-      if (/edu|learn/i.test(cat)) emoji = "📚";
-      if (/image/i.test(cat)) emoji = "🖼️";
-      if (/music/i.test(cat)) emoji = "🎧";
-      if (/other/i.test(cat)) emoji = "👥";
+    // Build help message
+    let msg = `🟢⚪🔴 𝗛𝗘𝗟𝗣 𝗖𝗠𝗗 🔴⚪🟢\n`;
+    msg += `📜 COMMAND LIST : ${page}/${totalPages}\n`;
+    msg += `─────────────────────────────\n`;
 
-      msg += `${emoji} | ${cat.charAt(0).toUpperCase() + cat.slice(1)}\n`;
-      msg += names.map(n => `- ${n}`).join("\n") + "\n\n";
-    }
-    msg += "╰───────────────────────────╯\n";
-    msg += `📌 Use: help [command] to see details\n`;
-    msg += `📌 Use: help [page] to see more pages\n`;
-    msg += "🤖 Bot by: JONNEL SORIANO";
+    pageItems.forEach((cmd, i) => {
+      const emoji = bullets[Math.floor(Math.random() * bullets.length)]; // random bullet
+      const catEmoji = categoryEmoji[cmd.category?.toLowerCase()] || "📁";
+      msg += `${i + 1 + (page-1)*perPage}. ${emoji} ${catEmoji} [${cmd.category || "Others"}] ${cmd.name}\n`;
+    });
+
+    msg += `─────────────────────────────\n`;
+
+    // Footer / Branding
+    const now = new Date();
+    const timeDate = now.toLocaleString("en-PH", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+
+    msg += `👑 Bot Owner  : Jonnel Soriano\n`;
+    msg += `🕵‍♀️ Bot Name  : Shizuka\n`;
+    msg += `🕒 Time & Date: ${timeDate}\n`;
+    msg += `─────────────────────────────\n`;
+    msg += `📌 Use help [command] → view command details\n`;
+    msg += `📌 Use help [page] → view next page\n`;
+    msg += `╰───────────────────────────╯`;
 
     return api.sendMessage(msg, threadID, messageID);
   }

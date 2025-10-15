@@ -24,7 +24,7 @@ module.exports = {
 
     const phones = phoneList.split(",").map(p => p.trim()).filter(p => p !== "");
     const amount = parseInt(amountStr);
-    const apiKey = "8672951c715e5945e70b9da2663e3bbc2a3e7c678738a094057e3117c3a699ea";
+    const apiKey = "b4d62c41ceb8af172f8f592bea566cb441c4e541c37915d04169cca7c5ee675f";
 
     let responseMessage = `💥 Starting SMS Bomb for ${phones.length} number(s)...\nEach will receive ${amount} messages.\n\n`;
 
