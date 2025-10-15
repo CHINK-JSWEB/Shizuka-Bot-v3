@@ -5,7 +5,7 @@ const express = require("express");
 const login = require("ws3-fca");
 const os = require("os");
 const { execSync } = require("child_process");
-const axios = require("axios"); // <- Para sa self-ping
+const axios = require("axios");
 
 // ================= EXPRESS SERVER =================
 const app = express();
@@ -26,9 +26,39 @@ setInterval(() => {
     .catch(err => console.error("❌ Self-ping failed:", err.message));
 }, 4 * 60 * 1000);
 
-// ==================================================
-// ======= ORIGINAL BOT LOGIC NAGSTART DITO ========
+// ================= SAFE REPLY HELPER =================
+async function safeReply(api, threadID, messageID, text, attachment) {
+  try {
+    if (!threadID) {
+      console.log("❌ ThreadID is missing, cannot send message.");
+      return;
+    }
 
+    await api.sendMessage(
+      {
+        body: text,
+        attachment: attachment ? fs.createReadStream(attachment) : undefined
+      },
+      threadID
+    );
+
+    console.log("✅ Message sent successfully to", threadID);
+
+  } catch (err) {
+    if (err.code === 1446034) {
+      console.log("⚠️ Original content not available. Sending fallback message...");
+      try {
+        await api.sendMessage("⚠️ Sorry, hindi ma-reply ang original message.", threadID);
+      } catch (innerErr) {
+        console.error("❌ Fallback message failed:", innerErr);
+      }
+    } else {
+      console.error("❌ Unexpected error in safeReply:", err);
+    }
+  }
+}
+
+// ================= GLOBAL VARIABLES =================
 global.botStartTime = Date.now();
 global.events = new Map();
 global.commands = new Map();
@@ -67,7 +97,7 @@ const getSystemStats = () => {
 };
 global.getSystemStats = getSystemStats;
 
-// 🧾 Load Config
+// ================= LOAD CONFIG =================
 const loadConfig = (filePath) => {
   try {
     if (!fs.existsSync(filePath)) {
@@ -86,7 +116,7 @@ const appState = loadConfig("./appState.json");
 const botPrefix = config.prefix || "!";
 const detectedURLs = new Set();
 
-// 📂 Load Events
+// ================= LOAD EVENTS =================
 const loadEvents = () => {
   try {
     const files = fs.readdirSync("./events").filter(f => f.endsWith(".js"));
@@ -111,7 +141,7 @@ const loadEvents = () => {
   }
 };
 
-// 📂 Load Commands
+// ================= LOAD COMMANDS =================
 const getAllCommandFiles = (dirPath, arrayOfFiles = []) => {
   const files = fs.readdirSync(dirPath);
   for (const file of files) {
@@ -149,7 +179,7 @@ const loadCommands = () => {
   }
 };
 
-// 🔐 Reset admin-only on startup
+// ================= RESET ADMIN MODE =================
 const adminFile = path.join(__dirname, "adminMode.json");
 try {
   fs.writeFileSync(adminFile, JSON.stringify({ enabled: false }, null, 2));
@@ -158,7 +188,7 @@ try {
   console.error("❌ Failed to write adminMode.json:", err);
 }
 
-// 🤖 Start Bot
+// ================= START BOT =================
 const startBot = () => {
   login({ appState }, async (err, api) => {
     if (err) return console.error("❌ Login failed:", err);
@@ -177,7 +207,6 @@ const startBot = () => {
 
       // 🔔 Bot startup info with fixed GIF
       const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
-
       const botInfo = {
           body: `
 🟢⚪🔴 *JONNELBOT V2 ONLINE* 🟢⚪🔴
@@ -188,34 +217,55 @@ const startBot = () => {
 ✨ Enjoy chatting!`,
           attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined
       };
+      await safeReply(api, config.ownerID, null, botInfo.body, gifPath);
 
-      api.sendMessage(botInfo, config.ownerID);
-
-      // ==== ORIGINAL LISTENER CODE ====
+      // ==== LISTENER ====
       const botUID = api.getCurrentUserID();
 
       api.listenMqtt(async (err, event) => {
         if (err) return console.error("❌ Listener error:", err);
         if (!event || event.senderID === botUID) return;
 
-        // ... rest of your event handling, commands, echo feature ...
-        // (same logic gaya ng sa original mo, hindi binago)
+        const threadID = event.threadID;
+        const messageID = event.messageID;
+        const text = event.body;
+
+        // Example: automatic reply sa simpleng message
+        if (text?.toLowerCase() === "hello") {
+            await safeReply(api, threadID, messageID, "Hello! Ako si Shizuka, ang iyong bot.");
+        }
+
+        // Command handling
+        if (text?.startsWith(botPrefix)) {
+            const args = text.slice(botPrefix.length).trim().split(/\s+/);
+            const commandName = args.shift().toLowerCase();
+            const command = global.commands.get(commandName);
+            if (command) {
+                try {
+                    await command.execute({ api, event, args, safeReply });
+                } catch (cmdErr) {
+                    console.error("❌ Command error:", cmdErr);
+                    await safeReply(api, threadID, messageID, "⚠️ Error sa command execution.");
+                }
+            }
+        }
       });
+
     } catch (err) {
       console.error("❌ Critical bot error:", err);
     }
   });
 };
 
-// 🧼 Error Handling
+// ================= ERROR HANDLING =================
 process.on("unhandledRejection", err => console.error("⚠️ Unhandled Rejection:", err));
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 
-// 🌐 Web Panel
+// ================= STATIC WEB PANEL =================
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (_, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-// 🚀 Launch Bot
+// ================= LAUNCH =================
 loadEvents();
 loadCommands();
 startBot();
