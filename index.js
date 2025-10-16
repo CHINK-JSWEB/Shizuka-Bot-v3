@@ -1,4 +1,5 @@
 // index.js — Jonnelbot V2 by Jonnel Soriano
+
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
@@ -7,58 +8,9 @@ const os = require("os");
 const { execSync } = require("child_process");
 const axios = require("axios");
 
-// ================= EXPRESS SERVER =================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Simple route
-app.get("/", (_, res) => res.send("Bot is running!"));
-app.get("/ping", (_, res) => res.send("pong"));
-
-// Start Express server
-app.listen(PORT, () => console.log(`🚀 Express server running on port ${PORT}`));
-
-// 🔄 Auto-ping para manatiling online (every 4 minutes)
-setInterval(() => {
-  const url = `http://localhost:${PORT}/ping`;
-  axios.get(url)
-    .then(() => console.log("✅ Self-ping successful, bot stays alive"))
-    .catch(err => console.error("❌ Self-ping failed:", err.message));
-}, 4 * 60 * 1000);
-
-// ================= SAFE REPLY HELPER =================
-async function safeReply(api, threadID, messageID, text, attachment) {
-  try {
-    if (!threadID) {
-      console.log("❌ ThreadID is missing, cannot send message.");
-      return;
-    }
-
-    await api.sendMessage(
-      {
-        body: text,
-        attachment: attachment ? fs.createReadStream(attachment) : undefined
-      },
-      threadID
-    );
-
-    console.log("✅ Message sent successfully to", threadID);
-
-  } catch (err) {
-    if (err.code === 1446034) {
-      console.log("⚠️ Original content not available. Sending fallback message...");
-      try {
-        await api.sendMessage("⚠️ Sorry, hindi ma-reply ang original message.", threadID);
-      } catch (innerErr) {
-        console.error("❌ Fallback message failed:", innerErr);
-      }
-    } else {
-      console.error("❌ Unexpected error in safeReply:", err);
-    }
-  }
-}
-
-// ================= GLOBAL VARIABLES =================
 global.botStartTime = Date.now();
 global.events = new Map();
 global.commands = new Map();
@@ -179,7 +131,7 @@ const loadCommands = () => {
   }
 };
 
-// ================= RESET ADMIN MODE =================
+// 🔐 Reset admin-only on startup
 const adminFile = path.join(__dirname, "adminMode.json");
 try {
   fs.writeFileSync(adminFile, JSON.stringify({ enabled: false }, null, 2));
@@ -187,6 +139,14 @@ try {
 } catch (err) {
   console.error("❌ Failed to write adminMode.json:", err);
 }
+
+// ================= EXPRESS & SELF-PING =================
+app.get("/", (_, res) => res.send("Bot is running!"));
+app.get("/ping", (_, res) => res.send("pong"));
+app.listen(PORT, () => console.log(`🚀 Express server running on port ${PORT}`));
+setInterval(() => {
+  axios.get(`http://localhost:${PORT}/ping`).catch(() => {});
+}, 4 * 60 * 1000);
 
 // ================= START BOT =================
 const startBot = () => {
@@ -197,57 +157,61 @@ const startBot = () => {
       api.setOptions({ ...config.option, listenEvents: true });
       console.clear();
 
-      console.log(`
-╔═════════════════════════════════════════════╗
-║        🟢⚪🔴  JONNELBOT V2 ONLINE!          ║
-║         🤖  AI SYSTEM ACTIVATED             ║
-║      👨‍💻  Creator: Jonnel Soriano          ║
-╚═════════════════════════════════════════════╝
-      `);
-
-      // 🔔 Bot startup info with fixed GIF
-      const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
-      const botInfo = {
-          body: `
-🟢⚪🔴 *JONNELBOT V2 ONLINE* 🟢⚪🔴
-🤖 AI SYSTEM ACTIVATED
-👨‍💻 Creator: *Jonnel Soriano 👑*
+      // Unicode Bold Startup Message
+      const startupMessage = `
+🟢⚪🔴 𝗦𝗛𝗜𝗭𝗨𝗞𝗔 𝗜𝗦 𝗢𝗡𝗟𝗜𝗡𝗘 🟢⚪🔴
+🤖 𝗔𝗜 𝗦𝗬𝗦𝗧𝗘𝗠 𝗔𝗖𝗧𝗜𝗩𝗔𝗧𝗘𝗗
+👨‍💻 𝗖𝗿𝗲𝗮𝘁𝗼𝗿: 𝗝𝗼𝗻𝗻𝗲𝗹 𝗦𝗼𝗿𝗶𝗮𝗻𝗼 👑
 ━━━━━━━━━━━━━━━━━━━━━━
-📌 Prefix: *${botPrefix}*
-✨ Enjoy chatting!`,
-          attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined
-      };
-      await safeReply(api, config.ownerID, null, botInfo.body, gifPath);
+📌 𝗣𝗿𝗲𝗳𝗶𝘅: ${botPrefix}
+✨ 𝗘𝗻𝗷𝗼𝘆 𝗰𝗵𝗮𝘁𝘁𝗶𝗻𝗴!
+      `;
+      const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
+      await api.sendMessage({ body: startupMessage, attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined }, config.ownerID);
 
-      // ==== LISTENER ====
       const botUID = api.getCurrentUserID();
 
       api.listenMqtt(async (err, event) => {
         if (err) return console.error("❌ Listener error:", err);
         if (!event || event.senderID === botUID) return;
 
-        const threadID = event.threadID;
-        const messageID = event.messageID;
-        const text = event.body;
-
-        // Example: automatic reply sa simpleng message
-        if (text?.toLowerCase() === "hello") {
-            await safeReply(api, threadID, messageID, "Hello! Ako si Shizuka, ang iyong bot.");
+        // 🔁 Run all event handlers
+        const handlers = global.events.get(event.type);
+        if (Array.isArray(handlers)) {
+          for (const handler of handlers) {
+            try { await handler({ api, event }); } catch (e) { console.error(e); }
+          }
         }
 
-        // Command handling
-        if (text?.startsWith(botPrefix)) {
-            const args = text.slice(botPrefix.length).trim().split(/\s+/);
-            const commandName = args.shift().toLowerCase();
-            const command = global.commands.get(commandName);
-            if (command) {
-                try {
-                    await command.execute({ api, event, args, safeReply });
-                } catch (cmdErr) {
-                    console.error("❌ Command error:", cmdErr);
-                    await safeReply(api, threadID, messageID, "⚠️ Error sa command execution.");
-                }
+        // 🌐 URL detection
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        if (event.body && urlRegex.test(event.body)) {
+          const urlCmd = global.commands.get("url");
+          if (urlCmd) {
+            const detectedURL = event.body.match(urlRegex)[0];
+            const key = `${event.threadID}-${detectedURL}`;
+            if (!detectedURLs.has(key)) {
+              detectedURLs.add(key);
+              try { await urlCmd.execute({ api, event }); } catch (e) { console.error(e); }
+              setTimeout(() => detectedURLs.delete(key), 3600000);
             }
+          }
+        }
+
+        // 💬 Command execution
+        if (event.body) {
+          let args = event.body.trim().split(/ +/);
+          let commandName = args.shift().toLowerCase();
+          let command = global.commands.get(commandName);
+          if (!command && event.body.startsWith(botPrefix)) {
+            commandName = event.body.slice(botPrefix.length).split(/ +/).shift().toLowerCase();
+            command = global.commands.get(commandName);
+          }
+
+          if (command) {
+            try { await command.execute({ api, event, args, message: api.sendMessage }); } 
+            catch (err) { console.error(`❌ Command '${command.name}' failed:`, err); api.sendMessage(`❌ CMD '${command.name}' failed`, config.ownerID); }
+          }
         }
       });
 
@@ -257,15 +221,11 @@ const startBot = () => {
   });
 };
 
-// ================= ERROR HANDLING =================
-process.on("unhandledRejection", err => console.error("⚠️ Unhandled Rejection:", err));
-process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
+// 🧼 Error Handling
+process.on("unhandledRejection", err => console.error(err));
+process.on("uncaughtException", err => console.error(err));
 
-// ================= STATIC WEB PANEL =================
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (_, res) => res.sendFile(path.join(__dirname, "index.html")));
-
-// ================= LAUNCH =================
+// 🚀 Launch
 loadEvents();
 loadCommands();
 startBot();

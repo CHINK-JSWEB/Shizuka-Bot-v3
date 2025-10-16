@@ -56,7 +56,7 @@ Enjoy your stay and have fun! 🎊`;
 
           // If bot itself is added, rename it
           if (userID === botID) {
-            await api.changeNickname("Jonnelbot V3", event.threadID, botID);
+            await api.changeNickname("Shizuka Bot v3", event.threadID, botID);
           }
         }
       } catch (err) {
