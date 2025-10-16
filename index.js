@@ -118,7 +118,7 @@ const loadCommands = () => {
         global.commands.set(name, {
           name,
           execute,
-          cooldown: cmd.config?.countDown || 0,
+          cooldown: cmd.config?.countDown || 5, // default 5s cooldown
           admin: cmd.config?.role === 1,
           usage: cmd.config?.guide?.en || '',
           version: cmd.config?.version || "1.0"
@@ -180,59 +180,85 @@ const startBot = () => {
 
       const botUID = api.getCurrentUserID();
 
-      // Prevent multiple listeners (fix double responses)
+      // 🧩 Prevent multiple listeners
       if (global.listenActive) {
         console.log("⚠️ Listener already active, skipping duplicate setup.");
         return;
       }
       global.listenActive = true;
+      global.processedMessages = new Set();
 
       api.listenMqtt(async (err, event) => {
-        if (err) return console.error("❌ Listener error:", err);
-        if (!event || event.senderID === botUID) return;
+        try {
+          if (err) return console.error("❌ Listener error:", err);
+          if (!event || event.senderID === botUID) return;
 
-        // 🔁 Run event handlers
-        const handlers = global.events.get(event.type);
-        if (Array.isArray(handlers)) {
-          for (const handler of handlers) {
-            try { await handler({ api, event }); } catch (e) { console.error(e); }
-          }
-        }
+          // ✅ Ignore duplicate messages
+          const mid = event.messageID || `${event.timestamp}-${event.threadID}`;
+          if (global.processedMessages.has(mid)) return;
+          global.processedMessages.add(mid);
+          setTimeout(() => global.processedMessages.delete(mid), 30000); // clear after 30s
 
-        // 🌐 URL detection
-        const urlRegex = /(https?:\/\/[^\s]+)/gi;
-        if (event.body && urlRegex.test(event.body)) {
-          const urlCmd = global.commands.get("url");
-          if (urlCmd) {
-            const detectedURL = event.body.match(urlRegex)[0];
-            const key = `${event.threadID}-${detectedURL}`;
-            if (!detectedURLs.has(key)) {
-              detectedURLs.add(key);
-              try { await urlCmd.execute({ api, event }); } catch (e) { console.error(e); }
-              setTimeout(() => detectedURLs.delete(key), 3600000);
+          // 🔁 Run event handlers
+          const handlers = global.events.get(event.type);
+          if (Array.isArray(handlers)) {
+            for (const handler of handlers) {
+              try { await handler({ api, event }); } catch (e) { console.error(e); }
             }
           }
-        }
 
-        // 💬 Command execution
-        if (event.body) {
-          let args = event.body.trim().split(/ +/);
-          let commandName = args.shift().toLowerCase();
-          let command = global.commands.get(commandName);
-
-          if (!command && event.body.startsWith(botPrefix)) {
-            commandName = event.body.slice(botPrefix.length).split(/ +/).shift().toLowerCase();
-            command = global.commands.get(commandName);
-          }
-
-          if (command) {
-            try {
-              await command.execute({ api, event, args, message: api.sendMessage });
-            } catch (err) {
-              console.error(`❌ Command '${command.name}' failed:`, err);
-              api.sendMessage(`❌ CMD '${command.name}' failed`, config.ownerID);
+          // 🌐 URL detection
+          const urlRegex = /(https?:\/\/[^\s]+)/gi;
+          if (event.body && urlRegex.test(event.body)) {
+            const urlCmd = global.commands.get("url");
+            if (urlCmd) {
+              const detectedURL = event.body.match(urlRegex)[0];
+              const key = `${event.threadID}-${detectedURL}`;
+              if (!detectedURLs.has(key)) {
+                detectedURLs.add(key);
+                try { await urlCmd.execute({ api, event }); } catch (e) { console.error(e); }
+                setTimeout(() => detectedURLs.delete(key), 3600000);
+              }
             }
           }
+
+          // 💬 Command execution with cooldown
+          if (event.body) {
+            let args = event.body.trim().split(/ +/);
+            let commandName = args.shift().toLowerCase();
+            let command = global.commands.get(commandName);
+
+            if (!command && event.body.startsWith(botPrefix)) {
+              commandName = event.body.slice(botPrefix.length).split(/ +/).shift().toLowerCase();
+              command = global.commands.get(commandName);
+            }
+
+            if (command) {
+              const userCooldowns = cooldowns.get(command.name) || new Map();
+              const now = Date.now();
+              const cdTime = command.cooldown * 1000;
+
+              if (userCooldowns.has(event.senderID)) {
+                const expiration = userCooldowns.get(event.senderID) + cdTime;
+                if (now < expiration) {
+                  const remaining = ((expiration - now) / 1000).toFixed(1);
+                  return api.sendMessage(`⏳ Please wait ${remaining}s before using '${command.name}' again.`, event.threadID);
+                }
+              }
+
+              userCooldowns.set(event.senderID, now);
+              cooldowns.set(command.name, userCooldowns);
+
+              try {
+                await command.execute({ api, event, args, message: api.sendMessage });
+              } catch (err) {
+                console.error(`❌ Command '${command.name}' failed:`, err);
+                api.sendMessage(`❌ CMD '${command.name}' failed`, config.ownerID);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("❌ Critical event error:", err);
         }
       });
 
