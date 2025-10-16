@@ -1,4 +1,4 @@
-// index.js — Jonnelbot V2 by Jonnel Soriano
+// index.js — Shizuka Bot V2 by Jonnel Soriano
 
 const fs = require("fs");
 const path = require("path");
@@ -150,6 +150,12 @@ setInterval(() => {
 
 // ================= START BOT =================
 const startBot = () => {
+  if (global.botRunning) {
+    console.log("⚠️ Bot already running, skipping new login...");
+    return;
+  }
+  global.botRunning = true;
+
   login({ appState }, async (err, api) => {
     if (err) return console.error("❌ Login failed:", err);
 
@@ -157,7 +163,7 @@ const startBot = () => {
       api.setOptions({ ...config.option, listenEvents: true });
       console.clear();
 
-      // Unicode Bold Startup Message
+      // Startup Message
       const startupMessage = `
 🟢⚪🔴 𝗦𝗛𝗜𝗭𝗨𝗞𝗔 𝗜𝗦 𝗢𝗡𝗟𝗜𝗡𝗘 🟢⚪🔴
 🤖 𝗔𝗜 𝗦𝗬𝗦𝗧𝗘𝗠 𝗔𝗖𝗧𝗜𝗩𝗔𝗧𝗘𝗗
@@ -167,15 +173,25 @@ const startBot = () => {
 ✨ 𝗘𝗻𝗷𝗼𝘆 𝗰𝗵𝗮𝘁𝘁𝗶𝗻𝗴!
       `;
       const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
-      await api.sendMessage({ body: startupMessage, attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined }, config.ownerID);
+      await api.sendMessage(
+        { body: startupMessage, attachment: fs.existsSync(gifPath) ? fs.createReadStream(gifPath) : undefined },
+        config.ownerID
+      );
 
       const botUID = api.getCurrentUserID();
+
+      // Prevent multiple listeners (fix double responses)
+      if (global.listenActive) {
+        console.log("⚠️ Listener already active, skipping duplicate setup.");
+        return;
+      }
+      global.listenActive = true;
 
       api.listenMqtt(async (err, event) => {
         if (err) return console.error("❌ Listener error:", err);
         if (!event || event.senderID === botUID) return;
 
-        // 🔁 Run all event handlers
+        // 🔁 Run event handlers
         const handlers = global.events.get(event.type);
         if (Array.isArray(handlers)) {
           for (const handler of handlers) {
@@ -203,14 +219,19 @@ const startBot = () => {
           let args = event.body.trim().split(/ +/);
           let commandName = args.shift().toLowerCase();
           let command = global.commands.get(commandName);
+
           if (!command && event.body.startsWith(botPrefix)) {
             commandName = event.body.slice(botPrefix.length).split(/ +/).shift().toLowerCase();
             command = global.commands.get(commandName);
           }
 
           if (command) {
-            try { await command.execute({ api, event, args, message: api.sendMessage }); } 
-            catch (err) { console.error(`❌ Command '${command.name}' failed:`, err); api.sendMessage(`❌ CMD '${command.name}' failed`, config.ownerID); }
+            try {
+              await command.execute({ api, event, args, message: api.sendMessage });
+            } catch (err) {
+              console.error(`❌ Command '${command.name}' failed:`, err);
+              api.sendMessage(`❌ CMD '${command.name}' failed`, config.ownerID);
+            }
           }
         }
       });
