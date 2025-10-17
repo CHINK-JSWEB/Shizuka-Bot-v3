@@ -118,7 +118,7 @@ const loadCommands = () => {
         global.commands.set(name, {
           name,
           execute,
-          cooldown: cmd.config?.countDown || 5, // default 5s cooldown
+          cooldown: cmd.config?.countDown || 5,
           admin: cmd.config?.role === 1,
           usage: cmd.config?.guide?.en || '',
           version: cmd.config?.version || "1.0"
@@ -193,11 +193,13 @@ const startBot = () => {
           if (err) return console.error("❌ Listener error:", err);
           if (!event || event.senderID === botUID) return;
 
-          // ✅ Ignore duplicate messages
-          const mid = event.messageID || `${event.timestamp}-${event.threadID}`;
-          if (global.processedMessages.has(mid)) return;
-          global.processedMessages.add(mid);
-          setTimeout(() => global.processedMessages.delete(mid), 30000); // clear after 30s
+          // ✅ Ignore duplicate messages EXCEPT message_unsend
+          if (event.type !== "message_unsend") {
+            const mid = event.messageID || `${event.timestamp}-${event.threadID}`;
+            if (global.processedMessages.has(mid)) return;
+            global.processedMessages.add(mid);
+            setTimeout(() => global.processedMessages.delete(mid), 30000);
+          }
 
           // 🔁 Run event handlers
           const handlers = global.events.get(event.type);
