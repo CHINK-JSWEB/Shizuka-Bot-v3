@@ -2,17 +2,10 @@ const fs = require("fs");
 const axios = require("axios");
 const path = require("path");
 
-const STATUS_FILE = path.join(__dirname, "resend-status.json");
-const ADMIN_ID = "100082770721408"; // boss lang
-
-// Load or initialize status
-let status = { enabled: true };
-if (fs.existsSync(STATUS_FILE)) {
-  try { status = JSON.parse(fs.readFileSync(STATUS_FILE)); } 
-  catch (e) { console.error("❌ Failed to load resend status:", e); }
-} else {
-  fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2));
-}
+// File kung saan naka-store ang per-thread toggle
+const TOGGLE_FILE = path.join(__dirname, "../cmds/resendToggle.json");
+let toggle = {};
+try { toggle = require(TOGGLE_FILE); } catch {}
 
 // In-memory cache for messages
 const cache = new Map();
@@ -23,21 +16,6 @@ module.exports = {
   run: async function ({ api, event }) {
     const { threadID, messageID, type, senderID, body } = event;
     const botID = api.getCurrentUserID();
-
-    // ---- Command for admin toggle ----
-    if (type === "message" && senderID === ADMIN_ID && body) {
-      const msg = body.trim().toLowerCase();
-      if (msg === "!resend on") {
-        status.enabled = true;
-        fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2));
-        return api.sendMessage("✅ Resend enabled", threadID);
-      }
-      if (msg === "!resend off") {
-        status.enabled = false;
-        fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2));
-        return api.sendMessage("❌ Resend disabled", threadID);
-      }
-    }
 
     // ---- Store message if not from bot ----
     if (type === "message" && senderID !== botID && (body || event.attachments?.length)) {
@@ -50,7 +28,11 @@ module.exports = {
     }
 
     // ---- Handle unsend ----
-    if (type === "message_unsend" && status.enabled) {
+    if (type === "message_unsend") {
+      // Check kung auto-resend ay enabled sa thread
+      const isEnabled = toggle[threadID];
+      if (!isEnabled) return;
+
       const threadCache = cache.get(threadID);
       if (!threadCache) return;
 
@@ -62,11 +44,11 @@ module.exports = {
       try {
         const userInfo = await api.getUserInfo(original.senderID);
         if (userInfo[original.senderID]?.name) senderName = userInfo[original.senderID].name;
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("❌ Error getting user name:", e); }
 
       const resendBody = `🔁 Message unsent by ${senderName}:\n\n${original.body || "[Attachment Only]"}`;
-      const attachmentStreams = [];
 
+      const attachmentStreams = [];
       for (const item of original.attachments) {
         if (["photo","video","sticker","animated_image","audio","file"].includes(item.type) && item.url) {
           try {
@@ -76,7 +58,11 @@ module.exports = {
         }
       }
 
-      api.sendMessage({ body: resendBody, attachment: attachmentStreams.length ? attachmentStreams : undefined }, threadID);
+      // Send the message back
+      api.sendMessage(
+        { body: resendBody, attachment: attachmentStreams.length ? attachmentStreams : undefined },
+        threadID
+      );
     }
   }
 };
