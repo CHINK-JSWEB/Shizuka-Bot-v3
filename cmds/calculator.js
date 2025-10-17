@@ -1,14 +1,8 @@
 const axios = require("axios");
-const math = require("mathjs"); // Make sure mathjs is installed
+const math = require("mathjs");
 
 // Store last calculations per thread
 const lastCalculations = {};
-
-// Unicode Bold Labels
-const poweredBy = "𝗝𝗢𝗡𝗡𝗘𝗟 𝗦𝗢𝗥𝗜𝗔𝗡𝗢"; // Bold Unicode
-const expressionLabel = "📝 𝗘𝗫𝗣𝗥𝗘𝗦𝗦𝗜𝗢𝗡"; // Bold
-const resultLabel = "💡 𝗥𝗘𝗦𝗨𝗟𝗧"; // Bold
-const explanationLabel = "💬 𝗘𝗫𝗣𝗟𝗔𝗡𝗔𝗧𝗜𝗢𝗡"; // Bold
 
 module.exports = {
   config: {
@@ -26,7 +20,7 @@ module.exports = {
       return api.sendMessage("⚠️ Please provide an expression to calculate.", threadID);
     }
 
-    // If user replies "Explain" to previous calculation
+    // If user replies "Explain"
     if (body.toLowerCase() === "explain") {
       if (!lastCalculations[threadID]) {
         return api.sendMessage("⚠️ No previous calculation found. Please compute first.", threadID);
@@ -43,16 +37,17 @@ module.exports = {
           }
         });
 
-        const explanation = response.data.answer || "❌ Failed to get explanation.";
+        const explanation = response.data.answer;
 
         return api.sendMessage(
-`${expressionLabel}: ${expression}
-${resultLabel}: ${result}
+`🧮 𝗦𝗛𝗜𝗭𝗨𝗞𝗔 𝗦𝗠𝗔𝗥𝗧 𝗖𝗔𝗟𝗖𝗨𝗟𝗔𝗧𝗢𝗥
+📥 𝗘𝗫𝗣𝗥𝗘𝗦𝗦𝗜𝗢𝗡: ${expression}
+💡 𝗥𝗘𝗦𝗨𝗟𝗧: ${result}
 ───────────────────────────────
-${explanationLabel}:
+💬 𝗘𝘅𝗽𝗹𝗮𝗻𝗮𝘁𝗶𝗼𝗻:
 ${explanation}
 ───────────────────────────────
-⚡ POWERED BY : ${poweredBy} 💻`,
+⚡ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 : 𝗝𝗢𝗡𝗡𝗘𝗟 𝗦𝗢𝗥𝗜𝗔𝗡𝗢 💻`,
           threadID
         );
 
@@ -68,10 +63,11 @@ ${explanation}
       lastCalculations[threadID] = { expression: body, result };
 
       return api.sendMessage(
-`${expressionLabel}: ${body}
-${resultLabel}: ${result}
+`🧮 𝗦𝗛𝗜𝗭𝗨𝗞𝗔 𝗦𝗠𝗔𝗥𝗧 𝗖𝗔𝗟𝗖𝗨𝗟𝗔𝗧𝗢𝗥
+📥 𝗘𝗫𝗣𝗥𝗘𝗦𝗦𝗜𝗢𝗡: ${body}
+💡 𝗥𝗘𝗦𝗨𝗟𝗧: ${result}
 ───────────────────────────────
-⚡ POWERED BY : ${poweredBy} 💻
+⚡ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 : 𝗝𝗢𝗡𝗡𝗘𝗟 𝗦𝗢𝗥𝗜𝗔𝗡𝗢 💻
 💬 Tip: Reply 'Explain' para malaman ang proseso!`,
         threadID
       );
