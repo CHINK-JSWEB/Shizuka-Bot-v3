@@ -1,133 +1,77 @@
-// cmds/calendar.js
 const fs = require("fs");
 const path = require("path");
-const moment = require("moment-timezone");
+const { format, getDaysInMonth, startOfMonth, getDay } = require("date-fns");
 
-const eventsFile = path.join(__dirname, "calendarEvents.json");
-
-// Ensure file exists
-if (!fs.existsSync(eventsFile)) fs.writeFileSync(eventsFile, "{}");
+const eventsFile = path.join(__dirname, "events.json");
+let eventsData = {};
+try { eventsData = require(eventsFile); } catch {}
 
 module.exports = {
   config: {
     name: "calendar",
-    aliases: ["cal", "date"],
-    version: "2.0",
-    author: "Jonnel Soriano",
-    role: 0,
-    guide: {
-      en: "calendar [month] [year]\ncalendar add <day> <event>\ncalendar list"
-    }
+    guide: { en: "Show calendar or add event" },
+    role: 0
   },
-
   execute: async ({ api, event, args }) => {
-    const { threadID, messageID } = event;
-    const tz = "Asia/Manila";
-    const now = moment().tz(tz);
-    let events = JSON.parse(fs.readFileSync(eventsFile, "utf8"));
+    const threadID = event.threadID;
+    if (!args.length) {
+      // Show current month calendar
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth(); // 0-indexed
+      const daysInMonth = getDaysInMonth(now);
+      const startDay = getDay(startOfMonth(now)); // 0 = Sunday
 
-    // Auto-create thread entry
-    if (!events[threadID]) events[threadID] = {};
+      let calendar = "📅 𝗦𝗛𝗜𝗭𝗨𝗞𝗔 𝗦𝗠𝗔𝗥𝗧 𝗖𝗔𝗟𝗘𝗡𝗗𝗔𝗥\n";
+      calendar += `📆 ${format(now,"MMMM yyyy").toUpperCase()}\n`;
+      calendar += "───────────────────────────────\n";
+      calendar += "Su Mo Tu We Th Fr Sa\n";
 
-    // Subcommands
-    const sub = args[0]?.toLowerCase();
-
-    // ─────────────── ADD EVENT ───────────────
-    if (sub === "add") {
-      if (args.length < 3)
-        return api.sendMessage("📝 | Usage: calendar add <day> <event>", threadID, messageID);
-
-      const day = parseInt(args[1]);
-      if (isNaN(day) || day < 1 || day > 31)
-        return api.sendMessage("❌ | Invalid day. (1–31 only)", threadID, messageID);
-
-      const text = args.slice(2).join(" ");
-      const month = now.month() + 1;
-      const year = now.year();
-      const key = `${year}-${month}`;
-
-      if (!events[threadID][key]) events[threadID][key] = {};
-      if (!events[threadID][key][day]) events[threadID][key][day] = [];
-
-      events[threadID][key][day].push(text);
-      fs.writeFileSync(eventsFile, JSON.stringify(events, null, 2));
-
-      return api.sendMessage(
-        `✅ Event added on ${day}/${month}/${year}!\n🗓 ${text}`,
-        threadID,
-        messageID
-      );
-    }
-
-    // ─────────────── LIST EVENTS ───────────────
-    if (sub === "list") {
-      const month = now.month() + 1;
-      const year = now.year();
-      const key = `${year}-${month}`;
-      const monthEvents = events[threadID][key];
-
-      if (!monthEvents || Object.keys(monthEvents).length === 0)
-        return api.sendMessage("📭 | No events for this month.", threadID, messageID);
-
-      let list = `🗓 EVENTS FOR ${now.format("MMMM YYYY")}\n───────────────────────────────\n`;
-      for (const [day, evts] of Object.entries(monthEvents)) {
-        list += `📅 ${day}:\n  • ${evts.join("\n  • ")}\n`;
+      let week = Array(startDay).fill("  ");
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayStr = d < 10 ? ` ${d}` : `${d}`;
+        // Check if there's event
+        let mark = "";
+        const threadEvents = eventsData[threadID] || [];
+        if (threadEvents.some(e => new Date(e.date).getDate() === d && new Date(e.date).getMonth() === month)) {
+          mark = "*"; // mark event
+        }
+        week.push(dayStr + mark);
+        if (week.length === 7) {
+          calendar += week.join(" ") + "\n";
+          week = [];
+        }
       }
-      list += "───────────────────────────────\n⚡ POWERED BY : Jonnel Soriano 💻";
+      if (week.length) calendar += week.join(" ") + "\n";
 
-      return api.sendMessage(list, threadID, messageID);
-    }
+      // Today's date
+      const todayStr = format(now,"dd MMMM yyyy");
+      calendar += `\n📍 Today: ${todayStr}\n`;
 
-    // ─────────────── SHOW CALENDAR ───────────────
-    let month, year;
-    if (args.length === 0) {
-      month = now.month() + 1;
-      year = now.year();
-    } else if (args.length === 1) {
-      month = parseInt(args[0]);
-      year = now.year();
+      // List events
+      const monthEvents = (eventsData[threadID] || []).filter(e => new Date(e.date).getMonth() === month);
+      monthEvents.forEach(e => {
+        const day = new Date(e.date).getDate();
+        calendar += `* ${format(new Date(e.date),"dd MMM")} → ${e.title}\n`;
+      });
+
+      calendar += "───────────────────────────────\n";
+      calendar += "⚡ POWERED BY : 𝗝𝗼𝗻𝗻𝗲𝗹 𝗦𝗼𝗿𝗶𝗮𝗻𝗼 💻\n";
+
+      return api.sendMessage(calendar, threadID);
     } else {
-      month = parseInt(args[0]);
-      year = parseInt(args[1]);
+      // Add new event: args = ["Dec", "11", "Jonnel Birthday 🎂"]
+      const [monthStr, dayStr, ...titleArr] = args;
+      const monthIndex = new Date(`${monthStr} 1, 2000`).getMonth(); // convert month name to index
+      const day = parseInt(dayStr);
+      const year = new Date().getFullYear();
+      const title = titleArr.join(" ");
+
+      if (!eventsData[threadID]) eventsData[threadID] = [];
+      eventsData[threadID].push({ date: `${year}-${monthIndex+1}-${day}`, title });
+      fs.writeFileSync(eventsFile, JSON.stringify(eventsData,null,2));
+
+      return api.sendMessage(`✅ Event added: ${monthStr} ${day} → ${title}`, threadID);
     }
-
-    if (isNaN(month) || month < 1 || month > 12)
-      return api.sendMessage("❌ | Invalid month (1–12).", threadID, messageID);
-
-    const firstDay = moment.tz(`${year}-${month}-01`, tz);
-    const daysInMonth = firstDay.daysInMonth();
-    const startDay = firstDay.day();
-    const monthName = firstDay.format("MMMM");
-
-    let calText = `📅 SHIZUKA SMART CALENDAR\n\n📆 ${monthName.toUpperCase()} ${year}\n`;
-    calText += "───────────────────────────────\nSu Mo Tu We Th Fr Sa\n";
-
-    let week = "";
-    for (let i = 0; i < startDay; i++) week += "   ";
-    for (let day = 1; day <= daysInMonth; day++) {
-      week += day.toString().padStart(2, " ") + " ";
-      if ((startDay + day) % 7 === 0 || day === daysInMonth) {
-        calText += week.trimEnd() + "\n";
-        week = "";
-      }
-    }
-
-    if (month === now.month() + 1 && year === now.year()) {
-      calText += `\n📍 Today: ${now.date()} ${monthName} ${year}`;
-    }
-
-    // Check events in that month
-    const key = `${year}-${month}`;
-    if (events[threadID][key] && Object.keys(events[threadID][key]).length > 0) {
-      calText += `\n\n📋 EVENTS:\n`;
-      for (const [day, evts] of Object.entries(events[threadID][key])) {
-        calText += `📅 ${day}: ${evts.join(", ")}\n`;
-      }
-    }
-
-    calText += "───────────────────────────────\n⚡ POWERED BY : Jonnel Soriano 💻";
-
-    const sent = await api.sendMessage(calText, threadID, messageID);
-    api.setMessageReaction("📅", sent.messageID, () => {}, true);
   }
 };
