@@ -6,7 +6,7 @@ const TOGGLE_FILE = path.join(__dirname, "../cmds/resendToggle.json");
 const cache = new Map();
 
 module.exports = {
-  config: { eventType: ["message", "message_unsend"] },
+  config: { eventType: ["message", "message_unsend"], name: "resend" },
 
   run: async function ({ api, event }) {
     const { threadID, messageID, type, senderID, body } = event;
@@ -16,7 +16,20 @@ module.exports = {
     let toggle = {};
     try { toggle = JSON.parse(fs.readFileSync(TOGGLE_FILE)); } catch {}
 
-    // ---- Store message if not from bot ----
+    // ===== Handle command "resend on/off" (no prefix needed) =====
+    if (type === "message" && body?.toLowerCase().startsWith("resend ")) {
+      const action = body.toLowerCase().split(" ")[1];
+      if (["on", "off"].includes(action)) {
+        toggle[threadID] = action === "on";
+        fs.writeFileSync(TOGGLE_FILE, JSON.stringify(toggle, null, 2));
+        return api.sendMessage(
+          `🔁 Auto-resend is now ${action.toUpperCase()} ✅`,
+          threadID
+        );
+      }
+    }
+
+    // ===== Store message if not from bot =====
     if (type === "message" && senderID !== botID && (body || event.attachments?.length)) {
       if (!cache.has(threadID)) cache.set(threadID, new Map());
       cache.get(threadID).set(messageID, {
@@ -26,7 +39,7 @@ module.exports = {
       });
     }
 
-    // ---- Handle unsend ----
+    // ===== Handle unsend =====
     if (type === "message_unsend") {
       const isEnabled = toggle[threadID] ?? true; // default ON
       if (!isEnabled) return;
@@ -47,11 +60,13 @@ module.exports = {
       const attachmentStreams = [];
 
       for (const item of original.attachments) {
-        if (["photo","video","sticker","animated_image","audio","file"].includes(item.type) && item.url) {
+        if (["photo", "video", "sticker", "animated_image", "audio", "file"].includes(item.type) && item.url) {
           try {
             const res = await axios.get(item.url, { responseType: "stream" });
             attachmentStreams.push(res.data);
-          } catch (err) { console.error("❌ Failed to fetch attachment:", err.message); }
+          } catch (err) {
+            console.error("❌ Failed to fetch attachment:", err.message);
+          }
         }
       }
 
