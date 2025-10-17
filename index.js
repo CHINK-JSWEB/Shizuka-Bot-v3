@@ -65,7 +65,7 @@ const loadConfig = (filePath) => {
 
 const config = loadConfig("./config.json");
 const appState = loadConfig("./appState.json");
-const botPrefix = config.prefix || "!";
+const botPrefix = config.prefix || "";
 const detectedURLs = new Set();
 
 // ================= LOAD EVENTS =================
@@ -107,13 +107,18 @@ const getAllCommandFiles = (dirPath, arrayOfFiles = []) => {
   return arrayOfFiles;
 };
 
+// ✅ UPDATED VERSION (error-safe loading)
 const loadCommands = () => {
-  try {
-    const commandFiles = getAllCommandFiles("./cmds");
-    for (const file of commandFiles) {
+  const commandFiles = getAllCommandFiles("./cmds");
+  let loadedCount = 0;
+  let failedCount = 0;
+
+  for (const file of commandFiles) {
+    try {
       const cmd = require(path.resolve(file));
       const name = cmd.config?.name || cmd.name;
       const execute = cmd.execute || cmd.onStart;
+
       if (name && typeof execute === "function") {
         global.commands.set(name, {
           name,
@@ -124,11 +129,15 @@ const loadCommands = () => {
           version: cmd.config?.version || "1.0"
         });
         console.log(`✅ Loaded command: ${name}`);
+        loadedCount++;
       }
+    } catch (err) {
+      console.error(`❌ Failed to load ${file}: ${err.message}`);
+      failedCount++;
     }
-  } catch (err) {
-    console.error("❌ Error loading commands:", err);
   }
+
+  console.log(`📦 Commands loaded: ${loadedCount} | ❌ Failed: ${failedCount}`);
 };
 
 // 🔐 Reset admin-only on startup
@@ -169,7 +178,7 @@ const startBot = () => {
 🤖 𝗔𝗜 𝗦𝗬𝗦𝗧𝗘𝗠 𝗔𝗖𝗧𝗜𝗩𝗔𝗧𝗘𝗗
 👨‍💻 𝗖𝗿𝗲𝗮𝘁𝗼𝗿: 𝗝𝗼𝗻𝗻𝗲𝗹 𝗦𝗼𝗿𝗶𝗮𝗻𝗼 👑
 ━━━━━━━━━━━━━━━━━━━━━━
-📌 𝗣𝗿𝗲𝗳𝗶𝘅: ${botPrefix}
+📌 𝗣𝗿𝗲𝗳𝗶𝘅: ${botPrefix || "(none)"}
 ✨ 𝗘𝗻𝗷𝗼𝘆 𝗰𝗵𝗮𝘁𝘁𝗶𝗻𝗴!
       `;
       const gifPath = path.join(__dirname, "assets", "indexprefix.gif");
@@ -180,7 +189,6 @@ const startBot = () => {
 
       const botUID = api.getCurrentUserID();
 
-      // 🧩 Prevent multiple listeners
       if (global.listenActive) {
         console.log("⚠️ Listener already active, skipping duplicate setup.");
         return;
@@ -193,7 +201,6 @@ const startBot = () => {
           if (err) return console.error("❌ Listener error:", err);
           if (!event || event.senderID === botUID) return;
 
-          // ✅ Ignore duplicate messages EXCEPT message_unsend
           if (event.type !== "message_unsend") {
             const mid = event.messageID || `${event.timestamp}-${event.threadID}`;
             if (global.processedMessages.has(mid)) return;
@@ -201,7 +208,6 @@ const startBot = () => {
             setTimeout(() => global.processedMessages.delete(mid), 30000);
           }
 
-          // 🔁 Run event handlers
           const handlers = global.events.get(event.type);
           if (Array.isArray(handlers)) {
             for (const handler of handlers) {
@@ -209,7 +215,6 @@ const startBot = () => {
             }
           }
 
-          // 🌐 URL detection
           const urlRegex = /(https?:\/\/[^\s]+)/gi;
           if (event.body && urlRegex.test(event.body)) {
             const urlCmd = global.commands.get("url");
@@ -230,7 +235,8 @@ const startBot = () => {
             let commandName = args.shift().toLowerCase();
             let command = global.commands.get(commandName);
 
-            if (!command && event.body.startsWith(botPrefix)) {
+            // No prefix needed (direct command)
+            if (!command && event.body.startsWith(botPrefix) && botPrefix) {
               commandName = event.body.slice(botPrefix.length).split(/ +/).shift().toLowerCase();
               command = global.commands.get(commandName);
             }
