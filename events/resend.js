@@ -1,55 +1,46 @@
 const fs = require("fs");
 const axios = require("axios");
 const path = require("path");
-const cache = new Map();
-const togglePath = path.join(__dirname, "../antiunsend.json");
 
-// 🔑 Ikaw lang ang master boss Jonnel 😎
-const MASTER_ID = "100082770721408";
+const STATUS_FILE = path.join(__dirname, "resend-status.json");
+const ADMIN_ID = "100082770721408"; // boss lang
 
-// 🔄 Load or create toggle file
-if (!fs.existsSync(togglePath)) {
-  fs.writeFileSync(togglePath, JSON.stringify({ enabled: true }, null, 2));
+// Load or initialize status
+let status = { enabled: true };
+if (fs.existsSync(STATUS_FILE)) {
+  try { status = JSON.parse(fs.readFileSync(STATUS_FILE)); } 
+  catch (e) { console.error("❌ Failed to load resend status:", e); }
+} else {
+  fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2));
 }
-let toggleData = JSON.parse(fs.readFileSync(togglePath));
+
+// In-memory cache for messages
+const cache = new Map();
 
 module.exports = {
-  config: {
-    eventType: ["message", "message_unsend"]
-  },
+  config: { eventType: ["message", "message_unsend"] },
 
   run: async function ({ api, event }) {
     const { threadID, messageID, type, senderID, body } = event;
     const botID = api.getCurrentUserID();
 
-    // 🧩 TOGGLE COMMAND (+antiunsend on/off)
-    if (type === "message" && body) {
-      const lower = body.toLowerCase().trim();
-      if (lower === "+antiunsend on" || lower === "+antiunsend off") {
-        // ✅ Only master can use this
-        if (senderID !== MASTER_ID) {
-          console.log(`🚫 User ${senderID} tried to toggle Anti-Unsend.`);
-          return api.sendMessage(
-            "⛔ Sorry, only the bot master can toggle Anti-Unsend mode.",
-            threadID
-          );
-        }
-
-        const enable = lower.endsWith("on");
-        toggleData.enabled = enable;
-        fs.writeFileSync(togglePath, JSON.stringify(toggleData, null, 2));
-
-        return api.sendMessage(
-          enable
-            ? "✅ Anti-Unsend mode is now **ON** — deleted messages will be recovered."
-            : "🚫 Anti-Unsend mode is now **OFF** — deleted messages will be ignored.",
-          threadID
-        );
+    // ---- Command for admin toggle ----
+    if (type === "message" && senderID === ADMIN_ID && body) {
+      const msg = body.trim().toLowerCase();
+      if (msg === "!resend on") {
+        status.enabled = true;
+        fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2));
+        return api.sendMessage("✅ Resend enabled", threadID);
+      }
+      if (msg === "!resend off") {
+        status.enabled = false;
+        fs.writeFileSync(STATUS_FILE, JSON.stringify(status, null, 2));
+        return api.sendMessage("❌ Resend disabled", threadID);
       }
     }
 
-    // 🧠 Save messages for recovery
-    if (type === "message" && senderID !== botID) {
+    // ---- Store message if not from bot ----
+    if (type === "message" && senderID !== botID && (body || event.attachments?.length)) {
       if (!cache.has(threadID)) cache.set(threadID, new Map());
       cache.get(threadID).set(messageID, {
         senderID,
@@ -58,52 +49,34 @@ module.exports = {
       });
     }
 
-    // 🔁 Handle unsend event
-    if (type === "message_unsend") {
-      if (!toggleData.enabled) return; // ❌ Stop if anti-unsend is off
-
+    // ---- Handle unsend ----
+    if (type === "message_unsend" && status.enabled) {
       const threadCache = cache.get(threadID);
       if (!threadCache) return;
 
       const original = threadCache.get(messageID);
       if (!original || original.senderID === botID) return;
 
-      // 🧾 Get user name
+      // Get sender name
       let senderName = "Unknown User";
       try {
-        const info = await api.getUserInfo(original.senderID);
-        senderName = info?.[original.senderID]?.name || "Unknown User";
-      } catch (err) {
-        console.error("❌ Error fetching user info:", err.message);
-      }
+        const userInfo = await api.getUserInfo(original.senderID);
+        if (userInfo[original.senderID]?.name) senderName = userInfo[original.senderID].name;
+      } catch (e) { console.error(e); }
 
-      // 💬 Message format
-      const resendBody = `🧠💬 ${senderName} tried to unsend a message!\n━━━━━━━━━━━━━━\n💌 Message:\n${original.body || "[Attachment Only]"}`;
-
-      // 📎 Re-fetch attachments
+      const resendBody = `🔁 Message unsent by ${senderName}:\n\n${original.body || "[Attachment Only]"}`;
       const attachmentStreams = [];
+
       for (const item of original.attachments) {
-        if (item?.url) {
+        if (["photo","video","sticker","animated_image","audio","file"].includes(item.type) && item.url) {
           try {
             const res = await axios.get(item.url, { responseType: "stream" });
             attachmentStreams.push(res.data);
-          } catch (e) {
-            console.error("❌ Failed to fetch attachment:", e.message);
-          }
+          } catch (err) { console.error("❌ Failed to fetch attachment:", err.message); }
         }
       }
 
-      // 🚨 Send recovered message
-      api.sendMessage(
-        {
-          body: resendBody,
-          attachment: attachmentStreams.length > 0 ? attachmentStreams : undefined,
-          mentions: [{ tag: senderName, id: original.senderID }]
-        },
-        threadID
-      );
-
-      console.log(`⚡ Anti-Unsend triggered for ${senderName}`);
+      api.sendMessage({ body: resendBody, attachment: attachmentStreams.length ? attachmentStreams : undefined }, threadID);
     }
   }
 };
