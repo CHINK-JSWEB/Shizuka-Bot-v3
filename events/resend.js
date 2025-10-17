@@ -2,12 +2,7 @@ const fs = require("fs");
 const axios = require("axios");
 const path = require("path");
 
-// File kung saan naka-store ang per-thread toggle
 const TOGGLE_FILE = path.join(__dirname, "../cmds/resendToggle.json");
-let toggle = {};
-try { toggle = require(TOGGLE_FILE); } catch {}
-
-// In-memory cache for messages
 const cache = new Map();
 
 module.exports = {
@@ -16,6 +11,10 @@ module.exports = {
   run: async function ({ api, event }) {
     const { threadID, messageID, type, senderID, body } = event;
     const botID = api.getCurrentUserID();
+
+    // Always read latest toggle
+    let toggle = {};
+    try { toggle = JSON.parse(fs.readFileSync(TOGGLE_FILE)); } catch {}
 
     // ---- Store message if not from bot ----
     if (type === "message" && senderID !== botID && (body || event.attachments?.length)) {
@@ -29,8 +28,7 @@ module.exports = {
 
     // ---- Handle unsend ----
     if (type === "message_unsend") {
-      // Check kung auto-resend ay enabled sa thread
-      const isEnabled = toggle[threadID];
+      const isEnabled = toggle[threadID] ?? true; // default ON
       if (!isEnabled) return;
 
       const threadCache = cache.get(threadID);
@@ -39,7 +37,6 @@ module.exports = {
       const original = threadCache.get(messageID);
       if (!original || original.senderID === botID) return;
 
-      // Get sender name
       let senderName = "Unknown User";
       try {
         const userInfo = await api.getUserInfo(original.senderID);
@@ -47,8 +44,8 @@ module.exports = {
       } catch (e) { console.error("❌ Error getting user name:", e); }
 
       const resendBody = `🔁 Message unsent by ${senderName}:\n\n${original.body || "[Attachment Only]"}`;
-
       const attachmentStreams = [];
+
       for (const item of original.attachments) {
         if (["photo","video","sticker","animated_image","audio","file"].includes(item.type) && item.url) {
           try {
@@ -58,7 +55,6 @@ module.exports = {
         }
       }
 
-      // Send the message back
       api.sendMessage(
         { body: resendBody, attachment: attachmentStreams.length ? attachmentStreams : undefined },
         threadID
